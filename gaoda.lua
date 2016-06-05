@@ -414,12 +414,12 @@ gdsrecord = sgs.CreateTriggerSkill{
 					n = n + 1
 				end
 				if player:getGeneralName() == text and n >= 5 then
-					local log = sgs.LogMessage()--BUG:Mind double mode
+					--[[local log = sgs.LogMessage()
 					log.type = "#gdsrecord"
 					log.from = player
 					log.arg = tostring(n)
-					room:sendLog(log)
-					liberate(player)
+					room:sendLog(log)]]
+					--BUG:效果待定
 				end
 				record2:write(text.."="..tostring(n))
 				if d ~= #t then
@@ -430,20 +430,6 @@ gdsrecord = sgs.CreateTriggerSkill{
 		end
 	end
 }
-
-liberate = function(player)
-	local room = player:getRoom()
-	local name = player:getGeneralName()
-	if name == "UNICORN" then
-		room:addPlayerMark(player, player:objectName().."_shenshou_liberated")
-		sgs.AddTranslationEntry("shenshou", "神兽•解放")
-		sgs.AddTranslationEntry(":shenshou", "当你使用一张<s><font color='#BDBDBD'><b>红色</b>的</font></s>【杀】指定一名角色为目标后，你可以令其交给你一张<font color='red'><b>红色</b></font>牌，否则此【杀】不可被【闪】响应。")
-	end
-end--sgs.Sangousha:addTranslationEntry or sgs.AddTranslationEntry? It is a question.
-
-isLiberated = function(player, skill_name)
-	return player:getMark(player:objectName().."_"..skill_name.."_liberated") > 0
-end--BUG:1.use tag to make all liberate, 2.network failed to translate
 
 --【地图炮系统】
 mapcard = sgs.CreateSkillCard{
@@ -805,7 +791,7 @@ shenshou = sgs.CreateTriggerSkill{
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local use = data:toCardUse()
-	if player:objectName() == use.from:objectName() and use.card:isKindOf("Slash") and (use.card:isRed() or isLiberated(player, self:objectName())) and
+	if player:objectName() == use.from:objectName() and use.card:isKindOf("Slash") and use.card:isRed() and
 	room:askForSkillInvoke(player, self:objectName(), data) then
 	    room:broadcastSkillInvoke("shenshou")
 		local jink_table = sgs.QList2Table(player:getTag("Jink_" .. use.card:toString()):toIntList())
@@ -6297,7 +6283,7 @@ sgs.LoadTranslationTable{
 	["seshia"] = "塞西娅",
 	["meiling"] = "美玲",
 	["#RemoveEquipArea"] = "%from 失去了%arg区",
-	["#gdsrecord"] = "%from 的出击次数为 %arg 次<br><font color='orange'><b>极限解放</b></font>模式——启动！<br><font color='orange'><b>（技能效果提升一阶）</b></font>",
+	["#gdsrecord"] = "%from 的出击次数为 %arg 次<br><font color='orange'><b>极限解放</b></font>模式——启动！<br><font color='orange'><b>（BUG:效果待定）</b></font>",
 	["map"] = "M炮",
 	[":map"] = "<font color='red'><b>地图炮</b></font>，出牌阶段，对敌方发动大型攻击！（无伤害来源）<br><b>镭射炮</b>：令任意名其他角色受到2点雷电伤害。<br><b>创世纪</b>：令任意名其他角色失去2点体力。",
 	["#map"] = "%from 发动了 <font color='red'><b>地图炮</b></font>：%arg",
@@ -6373,12 +6359,12 @@ sgs.LoadTranslationTable{
 	[":shenshou"] = "当你使用一张<font color='red'><b>红色</b></font>的【杀】指定一名角色为目标后，你可以令其交给你一张<font color='red'><b>红色</b></font>牌，否则此【杀】不可被【闪】响应。",
 	["@@shenshou"] = "请交给 %src 一张<font color='red'><b>红色</b></font>牌，否则此【杀】不可被【闪】响应",
 	["NTD"] = "NT-D",
-	[":NTD"] = "<img src=\"image/mark/@NTD.png\"><b><font color='green'>觉醒技</font></b>，当你成为一张非延时类锦囊牌的目标时，若你的体力不多于2，你须减1点体力上限终止此牌结算，展示你当前手牌，其中每有一张<font color='red'><b>红色</b></font>牌，你回复1点体力或摸一张牌，并获得技能<b>“毁灭”</b>（当你成为一张非延时类锦囊牌的目标时，你可以弃置一张<font color='red'><b>红色</b></font>手牌终止此牌结算，并视为你使用此牌）。",
+	[":NTD"] = "<img src=\"image/mark/@NTD.png\"><b><font color='green'>觉醒技，</font></b>当你成为一张非延时类锦囊牌的目标时，若你的体力不多于2，你须减1点体力上限终止此牌结算，展示你当前手牌，其中每有一张<font color='red'><b>红色</b></font>牌，你回复1点体力或摸一张牌，并获得技能<b>“毁灭”</b>（当你成为一张非延时类锦囊牌的目标时，你可以弃置一张<font color='red'><b>红色</b></font>手牌终止此牌结算，并视为你使用此牌）。",
 	["@NTD"] = "NT-D",
 	["ntddraw"] = "摸一张牌",
 	["ntdrecover"] = "回复 1 点体力",
 	["quanwu"] = "全武",
-	[":quanwu"] = "<img src=\"image/mark/@linguang.png\"><b><font color='green'>觉醒技</font></b>，准备阶段开始时，若你装备区的牌数不小于3，且已发动<b>“NT-D”</b>，将武将牌更换为<b><font color='green'>“彩虹的彼方 – FA UNICORN”</font></b>。",
+	[":quanwu"] = "<img src=\"image/mark/@linguang.png\"><b><font color='green'>觉醒技，</font></b>准备阶段开始时，若你装备区的牌数不小于3，且已发动<b>“NT-D”</b>，将武将牌更换为<b><font color='green'>“彩虹的彼方 – FA UNICORN”</font></b>。",
 	["huimie"] = "毁灭",
 	[":huimie"] = "当你成为一张非延时类锦囊牌的目标时，你可以弃置一张<font color='red'><b>红色</b></font>手牌终止此牌结算，并视为你使用此牌。",
 	["huimiecard"] = "毁灭",
@@ -6400,10 +6386,10 @@ sgs.LoadTranslationTable{
 	["zhonggong"] = "重攻",
 	[":zhonggong"] = "出牌阶段限一次，你可以失去装备区的一个位置，然后对一名其他角色造成1点伤害。",
 	["qingzhuang"] = "轻装",
-	[":qingzhuang"] = "<b>锁定技</b>，若你没有装备区：你与其他角色的距离-2，<font color='red'><b>红色</b></font>【杀】对你无效。",
+	[":qingzhuang"] = "<b><font color='blue'>锁定技，</font></b>若你没有装备区：你与其他角色的距离-2，<font color='red'><b>红色</b></font>【杀】对你无效。",
 	["qingzhuang_redslash"] = "<font color='red'><b>红色</b></font>杀",
 	["linguang"] = "磷光",
-	[":linguang"] = "<img src=\"image/mark/@linguang.png\"><font color='red'><b>限定技</b></font>，出牌阶段，你可以：回复1点体力，并将所有其他角色的武将牌翻面。若如此做，你的装备牌视为【杀】，你失去装备区。",
+	[":linguang"] = "<img src=\"image/mark/@linguang.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以：回复1点体力，并将所有其他角色的武将牌翻面。若如此做，你的装备牌视为【杀】，你失去装备区。",
 	["@linguang"] = "磷光",
 	["#linguangfilter"] = "磷光",
 	["$zhonggong1"] = "パージする!",
@@ -6519,7 +6505,7 @@ sgs.LoadTranslationTable{
 	[":mengshi"] = "当你使用一张黑色的【杀】指定一名角色为目标后，你可以将其装备区里的一张牌置于其手牌，若如此做，你于此回合内使用【杀】的额外次数上限+1。",
 	["#mengshislash"] = "猛狮",
 	["ntdtwo"] = "NT-D",
-	[":ntdtwo"] = "<img src=\"image/mark/@NTD2.png\"><b><font color='red'>限定技</font></b>，出牌阶段，你可以：减1点体力上限，展示你当前手牌，每有一张黑色牌，视为你使用一张【过河拆桥】，并获得技能<b>“报丧”</b>（当你成为一张非延时类锦囊牌的目标时，你可以将一张黑色手牌当【乐不思蜀】或【兵粮寸断】使用，并终止此牌结算）",
+	[":ntdtwo"] = "<img src=\"image/mark/@NTD2.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以：减1点体力上限，展示你当前手牌，每有一张黑色牌，视为你使用一张【过河拆桥】，并获得技能<b>“报丧”</b>（当你成为一张非延时类锦囊牌的目标时，你可以将一张黑色手牌当【乐不思蜀】或【兵粮寸断】使用，并终止此牌结算）",
 	["@NTD2"] = "NT-D",
 	["@ntdtwo"] = "请选择【过河拆桥】的目标角色",
 	["~ntdtwo"] = "选择目标→确定",
@@ -6551,14 +6537,14 @@ sgs.LoadTranslationTable{
 	["~shenshi"] = "选择手牌→选择目标→确定",
 	["po"] = "破",
 	["ntdthree"] = "NT-D",
-	[":ntdthree"] = "<img src=\"image/mark/@NTD3.png\"><b><font color='red'>限定技</font></b>，出牌阶段，你可以：减1点体力上限，展示你当前手牌，每有一张黑色牌，视为你使用一张【过河拆桥】，并获得技能<b>“诅咒”</b>（当你使用或被使用黑色【杀】时，你可以令此【杀】视为【决斗】）",
+	[":ntdthree"] = "<img src=\"image/mark/@NTD3.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以：减1点体力上限，展示你当前手牌，每有一张黑色牌，视为你使用一张【过河拆桥】，并获得技能<b>“诅咒”</b>（当你使用或被使用黑色【杀】时，你可以令此【杀】视为【决斗】）",
 	["@NTD3"] = "NT-D",
 	["@ntdthree"] = "请选择【过河拆桥】的目标角色",
 	["~ntdthree"] = "选择目标→确定",
 	["zuzhou"] = "诅咒",
 	[":zuzhou"] = "当你使用或被使用黑色【杀】时，你可以令此【杀】视为【决斗】。",
 	["xuanguang"] = "炫光",
-	[":xuanguang"] = "<img src=\"image/mark/@xuanguang.png\"><font color='green'><b>觉醒技</b></font>，当你处于濒死状态时，且已发动<b>“NT-D”</b>，你失去装备区，失去技能<b>“神狮”</b>和<b>“诅咒”</b>，体力回复至1点，并获得以下效果：你的装备牌视为【桃】，没有装备的角色防止属性伤害。",
+	[":xuanguang"] = "<img src=\"image/mark/@xuanguang.png\"><b><font color='green'>觉醒技，</font></b>当你处于濒死状态时，且已发动<b>“NT-D”</b>，你失去装备区，失去技能<b>“神狮”</b>和<b>“诅咒”</b>，体力回复至1点，并获得以下效果：你的装备牌视为【桃】，没有装备的角色防止属性伤害。",
 	["@xuanguang"] = "炫光",
 	["#xuanguangfilter"] = "炫光",
 	["#xuanguang"] = "%from 没有装备，触发“%arg”效果，防止了属性伤害",
@@ -6595,7 +6581,7 @@ sgs.LoadTranslationTable{
 	["wzpoint"] = "点数特效",
 	[":wzpoint"] = "<b>{X}</b>出牌阶段，你可以花费所有点数，然后摸等量张牌。",
 	["feiyi"] = "飞翼",
-	[":feiyi"] = "<b>锁定技</b>，若你的体力为2或更少，你使用【杀】时无距离限制；若你的体力为1，你于出牌阶段可以额外使用一张【杀】。",
+	[":feiyi"] = "<b><font color='blue'>锁定技，</font></b>若你的体力为2或更少，你使用【杀】时无距离限制；若你的体力为1，你于出牌阶段可以额外使用一张【杀】。",
 	["liuxing"] = "流星",
 	[":liuxing"] = "<b>[1]</b>你可以增加<b>1</b>点数，将两张手牌当【杀】使用，使用时进行一次判定，若为<font color='red'><b>红色</b></font>，此牌造成的伤害+1。",
 	["lingshi"] = "零式",
@@ -6626,7 +6612,7 @@ sgs.LoadTranslationTable{
 	["cv:EPYON"] = "米利亚尔特·匹斯克拉福特",
 	["illustrator:EPYON"] = "Sankies",
 	["qishi"] = "骑士",
-	[":qishi"] = "<b>锁定技</b>，你的【南蛮入侵】、【万箭齐发】及【火攻】均视为【杀】；你的攻击范围始终为1。",
+	[":qishi"] = "<b><font color='blue'>锁定技，</font></b>你的【南蛮入侵】、【万箭齐发】及【火攻】均视为【杀】；你的攻击范围始终为1。",
 	["mosu"] = "魔速",
 	[":mosu"] = "当一名其他角色于其回合内对你造成一次伤害后，你可以令当前回合立即结束，然后你进行一个额外的回合，此回合内，你与其距离视为1。",
 	["cishi"] = "次式",
@@ -6658,7 +6644,7 @@ sgs.LoadTranslationTable{
 	["#shuangpao"] = "%from 发动了“%arg”，本回合使用【杀】对距离1以外的目标角色造成的伤害+1。",
 	["ew_lingshi"] = "零式",
 	["@ew_lingshi"] = "零式",
-	[":ew_lingshi"] = "<img src=\"image/mark/@ew_lingshi.png\"><b><font color='red'>限定技</font></b>，当你没有手牌时失去体力后，你可以观看牌堆顶的十张牌，将其中任意数量的牌以任意顺序置于牌堆顶，你获得其余的牌，然后将你的武将牌翻面。",
+	[":ew_lingshi"] = "<img src=\"image/mark/@ew_lingshi.png\"><b><font color='red'>限定技，</font></b>当你没有手牌时失去体力后，你可以观看牌堆顶的十张牌，将其中任意数量的牌以任意顺序置于牌堆顶，你获得其余的牌，然后将你的武将牌翻面。",
 	["$shuangpao1"] = "排除開始",
 	["$shuangpao2"] = "フォーメーションを寸断する",
 	["$shuangpao3"] = "ターゲット、ロックオン…",
@@ -6698,7 +6684,7 @@ sgs.LoadTranslationTable{
 	[":gelin"] = "游戏开始时，你将牌堆顶的十张牌移出游戏，称为<b>“弹”</b>；你可以将一张<b>“弹”</b>当【杀】、两张“弹”当【闪】使用或打出。",
 	["dan"] = "弹",
 	["saoshe"] = "扫射",
-	[":saoshe"] = "<b>锁定技</b>，当你于出牌阶段计算你使用【杀】的次数限制时，每名目标角色独立计算。",
+	[":saoshe"] = "<b><font color='blue'>锁定技，</font></b>当你于出牌阶段计算你使用【杀】的次数限制时，每名目标角色独立计算。",
 	["$gelin1"] = "后方支援交给我吧",
 	["$gelin2"] = "歼灭敌机!",
 	
@@ -6718,7 +6704,7 @@ sgs.LoadTranslationTable{
 	["@@shuanglianjinkres"] = "请打出一张【闪】，否则受到1点伤害",
 	["@@shuanglianslashtar"] = "请选择一名【杀】的目标角色",
 	["zaizhan"] = "再战",
-	[":zaizhan"] = "<img src=\"image/mark/@zaizhan.png\"><b><font color='red'>限定技</font></b>，结束阶段开始时，你可以将你的武将牌翻面，令至多X名角色各摸一张牌并依次进行一个额外的回合。（X为你已损失的体力值）",
+	[":zaizhan"] = "<img src=\"image/mark/@zaizhan.png\"><b><font color='red'>限定技，</font></b>结束阶段开始时，你可以将你的武将牌翻面，令至多X名角色各摸一张牌并依次进行一个额外的回合。（X为你已损失的体力值）",
 	["@zaizhan"] = "再战",
 	["#zaizhan"] = "请选择至多X名角色（可选自己），X为你已损失的体力值",
 	["~zaizhan"] = "选择目标角色→确定",
@@ -6751,7 +6737,7 @@ sgs.LoadTranslationTable{
 	["cv:DX"] = "卡洛德·兰 & 蒂法·雅蒂尔",
 	["illustrator:DX"] = "Sankies",
 	["yueguang"] = "月光",
-	[":yueguang"] = "<b>锁定技</b>，准备阶段开始时，你须进行一次判定，若为<b>黑色</b>，你增加1点数，若为<font color='red'><b>红色</b></font>，你减少1点数。\
+	[":yueguang"] = "<b><font color='blue'>锁定技，</font></b>准备阶段开始时，你须进行一次判定，若为<b>黑色</b>，你增加1点数，若为<font color='red'><b>红色</b></font>，你减少1点数。\
 	\
 	<b>{≥2}点数特效</b>：若你的点数<b>≥2</b>，你使用【杀】时可额外指定一名目标角色。",
 	["weibo"] = "微波",
@@ -6830,7 +6816,7 @@ sgs.LoadTranslationTable{
 	[":jiechi"] = "出牌阶段，你可以弃置一张手牌，然后弃置一名其他角色装备区里的一张牌。",
     ["juexin"] = "决心",
 	["@juexin"] = "决心",
-	[":juexin"] = "<img src=\"image/mark/@juexin.png\"><b><font color='red'>限定技</font></b>，出牌阶段，你可以弃置所有手牌并指定一名其他角色，该角色于其回合开始前进行一次判定，若不为♠，该角色失去2点体力，然后你死亡。",
+	[":juexin"] = "<img src=\"image/mark/@juexin.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以弃置所有手牌并指定一名其他角色，该角色于其回合开始前进行一次判定，若不为♠，该角色失去2点体力，然后你死亡。",
     ["~AEGIS"] = "……尼哥路！",
 	["designer:AEGIS"] = "wch5621628 & Sankies & NOS7IM",
 	["cv:AEGIS"] = "亚斯兰·察拉",
@@ -6867,7 +6853,7 @@ sgs.LoadTranslationTable{
     ["pojia"] = "破甲",
 	["@pojia"] = "破甲",
 	["pojiacard"] = "破甲",
-	[":pojia"] = "<img src=\"image/mark/@pojia.png\"><b><font color='red'>限定技</font></b>，当你受到伤害后，你可以弃置你装备区里的所有牌（至少一张），视为对伤害来源使用两张【决斗】，并防止此【决斗】对你造成的伤害。",
+	[":pojia"] = "<img src=\"image/mark/@pojia.png\"><b><font color='red'>限定技，</font></b>当你受到伤害后，你可以弃置你装备区里的所有牌（至少一张），视为对伤害来源使用两张【决斗】，并防止此【决斗】对你造成的伤害。",
     ["~DUEL_AS"] = "痛い…!痛い痛いぃ!!!",
 	["designer:DUEL_AS"] = "wch5621628 & Sankies & NOS7IM",
 	["cv:DUEL_AS"] = "伊撒古·玖尔",
@@ -6889,7 +6875,7 @@ sgs.LoadTranslationTable{
 	["zhuanjin"] = "转进",
 	["@zhuanjin"] = "转进",
 	["zhuanjincard"] = "转进",
-	[":zhuanjin"] = "<img src=\"image/mark/@zhuanjin.png\"><b><font color='red'>限定技</font></b>，当一名其他角色处于濒死状态时，你可以令其体力回复至1点并摸X张牌（X为你与其已损失的体力值和），然后视为伤害来源对你使用一张【杀】。",
+	[":zhuanjin"] = "<img src=\"image/mark/@zhuanjin.png\"><b><font color='red'>限定技，</font></b>当一名其他角色处于濒死状态时，你可以令其体力回复至1点并摸X张牌（X为你与其已损失的体力值和），然后视为伤害来源对你使用一张【杀】。",
     ["~BLITZ"] = "母さん…僕の、ピアノ…",
 	["designer:BLITZ"] = "wch5621628 & Sankies & NOS7IM",
 	["cv:BLITZ"] = "尼哥路·阿玛菲",
@@ -6917,7 +6903,7 @@ sgs.LoadTranslationTable{
 	[":jiaoxie"] = "当你使一名其他角色进入濒死状态、或一名其他角色使你进入濒死状态时，你可以令其失去一项技能（不可为限定技或觉醒技）。",
 	["zhongzi"] = "种子",
 	["@seed"] = "SEED",
-	[":zhongzi"] = "<img src=\"image/mark/@seed.png\"><b><font color='green'>觉醒技</font></b>，当你处于濒死状态求桃完毕后，你将体力回复至2点，失去技能<b>“缴械”</b>并获得技能<b>“齐射”</b>（出牌阶段，你可以将所有手牌（至少一张）当火【杀】使用，此【杀】可指定至多X名目标且无距离限制（X为手牌数））。",
+	[":zhongzi"] = "<img src=\"image/mark/@seed.png\"><b><font color='green'>觉醒技，</font></b>当你处于濒死状态求桃完毕后，你将体力回复至2点，失去技能<b>“缴械”</b>并获得技能<b>“齐射”</b>（出牌阶段，你可以将所有手牌（至少一张）当火【杀】使用，此【杀】可指定至多X名目标且无距离限制（X为手牌数））。",
 	["qishe"] = "齐射",
 	[":qishe"] = "出牌阶段，你可以将所有手牌（至少一张）当火【杀】使用，此【杀】可指定至多X名目标且无距离限制（X为手牌数）。",
 	["~FREEDOM"] = "僕のせいで、僕のせいで!",
@@ -6936,7 +6922,7 @@ sgs.LoadTranslationTable{
 	["shouwang"] = "守望",
 	[":shouwang"] = "当你需要使用一张【桃】时，你可以减1点体力上限，视为你使用之。",
 	["zhongzij"] = "种子",
-	[":zhongzij"] = "<img src=\"image/mark/@seedj.png\"><b><font color='green'>觉醒技</font></b>，当你的体力上限为1时，你将体力上限增加至3点，失去技能<b>“守望”</b>并获得技能<b>“挥舞”</b>（出牌阶段限一次，当你使用【杀】结算后，你可以弃置所有手牌（至少一张）：黑色【杀】：弃置目标角色装备区里的一张牌；<font color='red'>红色</font>【杀】：额外结算一次。）",
+	[":zhongzij"] = "<img src=\"image/mark/@seedj.png\"><b><font color='green'>觉醒技，</font></b>当你的体力上限为1时，你将体力上限增加至3点，失去技能<b>“守望”</b>并获得技能<b>“挥舞”</b>（出牌阶段限一次，当你使用【杀】结算后，你可以弃置所有手牌（至少一张）：黑色【杀】：弃置目标角色装备区里的一张牌；<font color='red'>红色</font>【杀】：额外结算一次。）",
 	["@seedj"] = "SEED",
 	["huiwu"] = "挥舞",
 	[":huiwu"] = "出牌阶段限一次，当你使用【杀】结算后，你可以弃置所有手牌（至少一张）：黑色【杀】：弃置目标角色装备区里的一张牌；<font color='red'>红色</font>【杀】：额外结算一次。",
@@ -6980,7 +6966,7 @@ sgs.LoadTranslationTable{
 	["@longqi"] = "请观看一名其他角色的手牌并弃置其中一张<br>【闪】点数=%src<br>弃置点数%src的牌：对其造成1点伤害<br>弃置点数差为1的牌：重复此流程",
 	[":longqi"] = "当你使用或打出一张【闪】时，你可以：观看一名其他角色的手牌并弃置其中一张，若此牌与【闪】的点数相同，你对其造成1点伤害；若点数差为1，你可以重复此流程。",
     ["chuangshi"] = "创世",
-	[":chuangshi"] = "<b>锁定技</b>，当你受到其他角色造成的伤害时，若伤害不小于你的体力值，你减1点体力上限，然后对伤害来源造成等量伤害。",
+	[":chuangshi"] = "<b><font color='blue'>锁定技，</font></b>当你受到其他角色造成的伤害时，若伤害不小于你的体力值，你减1点体力上限，然后对伤害来源造成等量伤害。",
 	["~PROVIDENCE"] = "扉がっ…! 最後の扉が!",
 	["PROVIDENCE"] = "天意",
 	["#PROVIDENCE"] = "终末之光",
@@ -7011,7 +6997,7 @@ sgs.LoadTranslationTable{
 	["#daohe"] = "%from 获得效果“%arg”：%arg2",
 	["emeng"] = "恶梦",
 	["@emeng"] = "恶梦",
-	[":emeng"] = "<img src=\"image/mark/@emeng.png\"><b><font color='green'>觉醒技</font></b>，当你受到攻击范围外的角色使用【杀】造成的伤害后，将技能<b>“氘核”</b>改为<b>“你可以获得以下两项效果”</b>。",
+	[":emeng"] = "<img src=\"image/mark/@emeng.png\"><b><font color='green'>觉醒技，</font></b>当你受到攻击范围外的角色使用【杀】造成的伤害后，将技能<b>“氘核”</b>改为<b>“你可以获得以下两项效果”</b>。",
 	["~IMPULSE"] = "",
 	["IMPULSE"] = "脉冲",
 	["#IMPULSE"] = "新生之鸟",
@@ -7034,6 +7020,21 @@ sgs.LoadTranslationTable{
 	[":xingzhui"] = "一名角色的准备阶段开始时，你可以将所有<b>“翼”</b>（至少一张）置入弃牌堆，若颜色相同，视为你使用了一张基本牌，若颜色不同，视为你使用了一张非延时类锦囊牌。",
 	["@xingzhui"] = "请选择【%src】的目标",
 	["~xingzhui"] = "选择目标→确定",
+	
+	["EXIA_R"] = "艾斯亚R",
+	["#EXIA_R"] = "能天使",
+	["liejian"] = "裂剑",
+	[":liejian"] = "<b><font color='blue'>锁定技，</font></b>当你使用各花色的【杀】指定一个目标后：\
+	黑桃：弃置你的武器。\
+	红桃：弃置你的防具。\
+	梅花：弃置其一张手牌。\
+	方块：其须使用两张【闪】抵消。",
+	["duzhan"] = "独战",
+	[":duzhan"] = "若你在所有其他角色攻击范围内，你可以将一张手牌当【杀】、装备区里的一张牌当【闪】使用或打出。",
+	["~EXIA_R"] = "",
+	["designer:EXIA_R"] = "wch5621628 & Sankies & NOS7IM",
+	["cv:EXIA_R"] = "刹那·F·塞尔",
+	["illustrator:EXIA_R"] = "Sankies",
 	
 	["REBORNS_CANNON"] = "再生加农",
 	["#REBORNS_CANNON"] = "原始的变革者",
@@ -7063,7 +7064,7 @@ sgs.LoadTranslationTable{
 	["zaisheng"] = "再生",
 	[":zaisheng"] = "出牌阶段限一次，你可以弃置任意张牌，然后重复亮出牌堆顶的牌，若为基本牌，你获得之，直到你以此法获得X张牌（X为你以此法弃置的牌数）。",
 	["reborns_transam"] = "TRANS-AM",
-	[":reborns_transam"] = "<img src=\"image/mark/@reborns_transam.png\"><b><font color='red'>限定技</font></b>，出牌阶段，你可以令你于本回合发动<b>“机动”</b>或<b>“奋攻”</b>时无次数限制，且发动<b>“机动”</b>时不需弃牌。",
+	[":reborns_transam"] = "<img src=\"image/mark/@reborns_transam.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以令你于本回合发动<b>“机动”</b>或<b>“奋攻”</b>时无次数限制，且发动<b>“机动”</b>时不需弃牌。",
 	["@reborns_transam"] = "TRANS-AM",
 	["$zaisheng1"] = "さぁ始めよう。来たるべき未来のために",
 	["$zaisheng2"] = "ボクを叩けなかった君達の負けだよ",
@@ -7080,10 +7081,10 @@ sgs.LoadTranslationTable{
 	[":feijian"] = "游戏开始时，你将牌堆顶的四张牌置于你的武将牌上，称为<b>“剪”</b>。你可以将一张与<b>“剪”</b>相同花色的牌当【杀】使用或打出，你以此法使用【杀】时可额外指定一名目标角色。",
 	["jian"] = "剪",
 	["liuyan"] = "六眼",
-	[":liuyan"] = "<img src=\"image/mark/@MARUT.png\"><b><font color='green'>觉醒技</font></b>，准备阶段开始时，若你的体力为2或更少，你减1点体力上限，摸六张牌，并获得以下效果：你可以将一张<b>“剪”</b>当【桃】使用。",
+	[":liuyan"] = "<img src=\"image/mark/@MARUT.png\"><b><font color='green'>觉醒技，</font></b>准备阶段开始时，若你的体力为2或更少，你减1点体力上限，摸六张牌，并获得以下效果：你可以将一张<b>“剪”</b>当【桃】使用。",
 	["@MARUT"] = "MARUT",
 	["harute_transam"] = "TRANS-AM",
-	[":harute_transam"] = "<img src=\"image/mark/@harute_transam.png\"><b><font color='red'>限定技</font></b>，出牌阶段，你可以令你于此阶段：可以额外使用三张【杀】且无距离限制。若如此做，你跳过下一个摸牌阶段。",
+	[":harute_transam"] = "<img src=\"image/mark/@harute_transam.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以令你于此阶段：可以额外使用三张【杀】且无距离限制。若如此做，你跳过下一个摸牌阶段。",
 	["@harute_transam"] = "TRANS-AM",
 	["$feijian1"] = "GNシザービット展開!",
 	["$feijian2"] = "断ち切れ!シザービット!",
@@ -7121,11 +7122,11 @@ sgs.LoadTranslationTable{
 	[":jieneng"] = "当你成为【杀】的目标后，你可以进行判定：若为<b><font color='red'>红色</font></b>，你将此【杀】置于武将牌上，称为<b>“能”</b>，且此【杀】对你无效。每有一张<b>“能”</b>，你的手牌上限-1。",
 	["neng"] = "能",
 	["shineng"] = "释能",
-	[":shineng"] = "<img src=\"image/mark/@shineng.png\"><b><font color='red'>限定技</font></b>，出牌阶段，你可以将所有<b>“能”</b>（至少一张）置入手牌，若如此做，此阶段：你的攻击范围和【杀】的额外使用次数均+X。（X为<b>“能”</b>的数量）",
+	[":shineng"] = "<img src=\"image/mark/@shineng.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以将所有<b>“能”</b>（至少一张）置入手牌，若如此做，此阶段：你的攻击范围和【杀】的额外使用次数均+X。（X为<b>“能”</b>的数量）",
 	["@shineng"] = "释能",
 	["rg"] = "RG",
-	[":rg"] = "<img src=\"image/mark/@rg.png\"><b><font color='red'>限定技</font></b>，准备阶段开始时，你可以失去技能<b>“劫能”</b>和<b>“释能”</b>，并获得技能<b>“铁拳”</b>（<b>锁定技</b>，你对其他角色造成的伤害+1；你的单数【闪】视为【杀】）。",
+	[":rg"] = "<img src=\"image/mark/@rg.png\"><b><font color='red'>限定技，</font></b>准备阶段开始时，你可以失去技能<b>“劫能”</b>和<b>“释能”</b>，并获得技能<b>“铁拳”</b>（<b><font color='blue'>锁定技，</font></b>你对其他角色造成的伤害+1；你的单数【闪】视为【杀】）。",
 	["@rg"] = "RG",
 	["tiequan"] = "铁拳",
-	[":tiequan"] = "<b>锁定技</b>，你对其他角色造成的伤害+1；你的单数【闪】视为【杀】。",
+	[":tiequan"] = "<b><font color='blue'>锁定技，</font></b>你对其他角色造成的伤害+1；你的单数【闪】视为【杀】。",
 }
