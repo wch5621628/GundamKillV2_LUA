@@ -56,7 +56,7 @@ sgs.LoadTranslationTable{
 
 	["tactical_combo"] = "战术连携",
 	["TacticalCombo"] = "战术连携",
-	[":tactical_combo"] = "锦囊牌\
+	[":tactical_combo"] = "战术牌\
 	<b>时机</b>：出牌阶段\
 	<b>目标</b>：一至两名角色\
 	<b>效果</b>：令目标角色选择一项：使用一张【杀】（无次数限制），或摸一张牌。",

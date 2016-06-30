@@ -7,6 +7,7 @@ if not sgs.ai_damage_effect then
 end
 
 function SmartAI:useCardTacticalCombo(card, use)
+	if self.player:getMark("@duilieB") > 0 and math.mod(card:getNumber(), 2) == 0 and card:getNumber() > 0 then return end
 	use.card = card
 	if use.to then
 		local targets = self.friends
