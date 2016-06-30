@@ -1986,7 +1986,7 @@ BANSHEE_NTD:addRelateSkill("baosang")
 
 NORN = sgs.General(extension, "NORN", "EFSF", 4, true, dlc, dlc)
 if dlc then
-	if t then
+	if t[1] then
 		local times = tonumber(t[1]:split("=")[2])
 		if times == 5 and sgs.Sanguosha:translate("NORN") == "NORN" then
 			sgs.Alert("累计5场游戏——你获得新机体：黑独角兽-命运女神！")
@@ -6234,7 +6234,7 @@ extension:insertRelatedSkills("harute_transam", "#harute_transamslash")
 
 ELSQ = sgs.General(extension, "ELSQ", "CB", 3, true, dlc, dlc)
 if dlc then
-	if t then
+	if t[1] then
 		local times = tonumber(t[1]:split("=")[2])
 		if times == 10 and sgs.Sanguosha:translate("ELSQ") == "ELSQ" then
 			sgs.Alert("累计10场游戏——你获得新机体：ELS Q！")
