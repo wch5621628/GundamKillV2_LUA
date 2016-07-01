@@ -9,7 +9,7 @@ auto_backdrop = true --自动切换起始背景
 gg_effect = true --阵亡特效
 opening = true --开场对白
 dlc = true --武将解锁系统（每5场游戏解锁1名隐藏武将）节日武将？
-map_attack = true --地图炮系统（5~7人场：1人持有|8~9人场：2人持有|10人场：3人持有。地图炮持有者为随机分配，受到第1点伤害后显示能量槽，之后每受到1点伤害后便增加1点能量，满5点能量可发炮，每场只可发炮一次，各高达系列的地图炮效果有所不同。）
+map_attack = true --地图炮系统（5~7人场：1人持有|8~9人场：2人持有|10人场：3人持有。地图炮持有者为随机分配，受到第1点伤害后显示能量槽，之后每受到1点伤害后便增加1点能量，满5点能量可发炮，每名角色每场只可发炮一次，各高达系列的地图炮效果有所不同。）
 
 gdata = "g.lua" --DO NOT DELETE THIS FILE!
 --BUG:dying=>json huashen failed
@@ -3504,7 +3504,7 @@ saoshet = sgs.CreateTargetModSkill{
 	name = "#saoshet",
 	pattern = "Slash",
 	residue_func = function(self, player)
-		if player:hasSkill(self:objectName()) then
+		if player:hasSkill("saoshe") then
 			return player:getAliveSiblings():length() - 1
 		end
 	end,
