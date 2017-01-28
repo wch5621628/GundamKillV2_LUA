@@ -38,3 +38,5 @@ sgs.ai_nullification.TacticalCombo = function(self, card, from, to, positive)
 	end
 	return
 end
+
+sgs.ai_use_priority.LaplaceBox = 0.8

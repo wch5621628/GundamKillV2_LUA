@@ -19,6 +19,58 @@ end
 sgs.ai_use_value["map"] = 8
 sgs.ai_use_priority["map"] = 5.3
 
+--爆发系统
+local bursta_skill={}
+bursta_skill.name="bursta"
+table.insert(sgs.ai_skills,bursta_skill)
+bursta_skill.getTurnUseCard=function(self,inclusive)
+    if self.player:getMark("@bursta") == 1 and self.player:getMark("bursta") == 0 then
+		local card_str = ("#bursta:.:")
+		return sgs.Card_Parse(card_str)
+	end
+end
+
+sgs.ai_skill_use_func["#bursta"]=function(card, use, self)
+	use.card = card
+end
+
+sgs.ai_use_value["bursta"] = 10
+sgs.ai_use_priority["bursta"] = 10
+
+local burstd_skill={}
+burstd_skill.name="burstd"
+table.insert(sgs.ai_skills,burstd_skill)
+burstd_skill.getTurnUseCard=function(self,inclusive)
+    if self.player:getMark("@burstd") == 1 and self.player:getMark("burstd") == 0 then
+		local card_str = ("#burstd:.:")
+		return sgs.Card_Parse(card_str)
+	end
+end
+
+sgs.ai_skill_use_func["#burstd"]=function(card, use, self)
+	use.card = card
+end
+
+sgs.ai_use_value["burstd"] = 10
+sgs.ai_use_priority["burstd"] = 10
+
+local burstp_skill={}
+burstp_skill.name="burstp"
+table.insert(sgs.ai_skills,burstp_skill)
+burstp_skill.getTurnUseCard=function(self,inclusive)
+    if self.player:getMark("@burstp") == 1 and self.player:getMark("burstp") == 0 then
+		local card_str = ("#burstp:.:")
+		return sgs.Card_Parse(card_str)
+	end
+end
+
+sgs.ai_skill_use_func["#burstp"]=function(card, use, self)
+	use.card = card
+end
+
+sgs.ai_use_value["burstp"] = 10
+sgs.ai_use_priority["burstp"] = 10
+
 --辉勇面
 local yuexian_skill={}
 yuexian_skill.name="yuexian"
@@ -80,7 +132,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 	    self:sort(self.enemies, "defense")
 		local targets = {}
 		for _,enemy in ipairs(self.enemies) do
-		    if (not enemy:isProhibited(enemy, sgs.Sanguosha:getCard(card[5]))) and self.player:canSlash(enemy, sgs.Sanguosha:getCard(card[5])) then
+		    if (not self:slashProhibit(sgs.Sanguosha:getCard(card[5]), enemy)) and self.player:canSlash(enemy, sgs.Sanguosha:getCard(card[5])) then
 				if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:getCard(card[5])) then break end
 				table.insert(targets,enemy:objectName())
 			end
@@ -251,6 +303,16 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 	return "."
 end
 
+--高达
+sgs.ai_skill_invoke.yuanzu = function(self, data)
+	return true
+end
+
+sgs.ai_skill_choice.yuanzu = function(self, choices, data)
+	local choice = choices:split("+")
+	return choice[math.random(1, #choice)]
+end
+
 --独角兽
 sgs.ai_skill_invoke.shenshou = function(self, data)
 	return true
@@ -259,8 +321,12 @@ end
 sgs.ai_skill_cardask["@@shenshou"] = function(self)
     if self.player:hasSkill("xiaya") then
 	    return self:getSuitNum("red",true,self.player) > 1
+	elseif self.player:hasSkill("huanyi") and self.player:getMark("@huanyi") > 0 then
+		return self:getSuitNum("red",true,self.player) > 1 and self:getSuitNum("red",false,self.player) > 0
+	elseif self.player:getMark("@supermode") > 0 and self.player:getMark("jingxin") > 0 and self.player:getMark("@point") > 0 then
+		return self:getSuitNum("red",true,self.player) > 0
 	else
-	if (self:getCardsNum("Peach") > 0) or (self:getSuitNum("red",true,self.player) < 2) or (self:getCardsNum("Jink") == 0) then return "." end
+		if (self:getCardsNum("Peach") > 0) or (self:getSuitNum("red",true,self.player) < 2) or (self:getCardsNum("Jink") == 0) then return "." end
 		for _, card in sgs.qlist(self.player:getCards("he")) do
 		    if self:getCardsNum("Jink") > 1 then
 				if card:isRed() then
@@ -430,7 +496,7 @@ function Set(list)
 end
 
 hasEquipArea = function(player, name)
-	if (name == "treasure" and (Set(sgs.Sanguosha:getBanPackages()))["limitation_broken"])
+	if (name == "treasure" and (Set(sgs.Sanguosha:getBanPackages()))["limitation_broken"] and (Set(sgs.Sanguosha:getBanPackages()))["gundamcard"])
 	or player:getMark(name.."AreaRemoved") > 0 then
 		return false
 	end
@@ -992,20 +1058,21 @@ end
 sgs.ai_skill_use["@@zuzhou"] = function(self, prompt)
     self:updatePlayers()
 	self:sort(self.enemies, "defenseSlash")
-	local target
+	local targets = {}
+	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuitBlack, 0)
 	for _, enemy in ipairs(self.enemies) do
-		if self.player:canSlash(enemy) and not self:slashProhibit(sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuitBlack, 0), enemy) then
-			target = enemy
-			break
+		if self.player:canSlash(enemy) and not self:slashProhibit(slash, enemy) then
+			if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, slash) then break end
+			table.insert(targets, enemy:objectName())
 		end
 	end
-	if target then
+	if #targets > 0 then
 		local cards = self.player:getCards("h")
 		cards = sgs.QList2Table(cards)
 		self:sortByUseValue(cards, true)
 		for _,card in ipairs(cards) do
 			if card:isBlack() and not (self.player:getHp() == 1 and card:isKindOf("Analeptic")) then
-				return ("slash:zuzhou[%s:%s]=%d->%s"):format(card:getSuitString(), card:getNumberString(), card:getEffectiveId(), target:objectName())
+				return ("slash:zuzhou[%s:%s]=%d->%s"):format(card:getSuitString(), card:getNumberString(), card:getEffectiveId(), table.concat(targets, "+"))
 			end
 		end
 	else
@@ -1120,6 +1187,119 @@ sgs.ai_use_value["leishe"] = 2.5
 sgs.ai_use_priority["leishe"] = sgs.ai_use_value.Slash - 0.1
 sgs.dynamic_value.damage_card["leishe"] = true
 
+sgs.ai_skill_cardask["@@shanguang"] = function(self, data)
+	local source = data:toPlayer()
+	local player = self.player
+
+	if self:needToThrowArmor() then
+		return "$" .. player:getArmor():getEffectiveId()
+	end
+
+	if not self:damageIsEffective(player, sgs.DamageStruct_Normal, source) then
+		return "."
+	end
+	if self:getDamagedEffects(self.player, source) then
+		return "."
+	end
+	if self:needToLoseHp(player, source) then
+		return "."
+	end
+
+	local card_id
+	if self:hasSkills(sgs.lose_equip_skill, player) then
+		if player:getWeapon() then card_id = player:getWeapon():getId()
+		elseif player:getOffensiveHorse() then card_id = player:getOffensiveHorse():getId()
+		elseif player:getArmor() then card_id = player:getArmor():getId()
+		elseif player:getDefensiveHorse() then card_id = player:getDefensiveHorse():getId()
+		end
+	end
+
+	if not card_id then
+		for _, card in sgs.qlist(player:getCards("h")) do
+			if card:isKindOf("EquipCard") then
+				card_id = card:getEffectiveId()
+				break
+			end
+		end
+	end
+
+	if not card_id then
+		if player:getWeapon() then card_id = player:getWeapon():getId()
+		elseif player:getOffensiveHorse() then card_id = player:getOffensiveHorse():getId()
+		elseif self:isWeak(player) and player:getArmor() then card_id = player:getArmor():getId()
+		elseif self:isWeak(player) and player:getDefensiveHorse() then card_id = player:getDefensiveHorse():getId()
+		end
+	end
+
+	if not card_id then return "." else return "$" .. card_id end
+end
+
+--闪光
+local shanguang_skill = {}
+shanguang_skill.name = "shanguang"
+table.insert(sgs.ai_skills, shanguang_skill)
+shanguang_skill.getTurnUseCard = function(self, inclusive)
+	if (self.player:usedTimes("#shanguang") <= self.player:getMark("@supermode")) and ((self.player:getHp() >= 3 and self:getCardsNum("Jink") > 0)
+		or (self.player:getHp() <= 2 and self:getCardsNum("Jink") > 1) or (self.player:getMark("@supermode") > 0 and self:getCardsNum("Weapon") > 0)) then
+		for _, enemy in ipairs(self.enemies) do
+			if self.player:inMyAttackRange(enemy) then
+				return sgs.Card_Parse("#shanguang:.:")
+			end
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#shanguang"] = function(card, use, self)
+	self:sort(self.enemies, "hp")
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:inMyAttackRange(enemy) then
+			local ids = {}
+			for _,card in sgs.qlist(self.player:getCards("he")) do
+				local id = card:getId()
+				if card:isKindOf("Jink") then
+					table.insert(ids, id)
+				elseif self.player:getMark("@supermode") > 0 and card:isKindOf("Weapon") then
+					local rangefix = 0
+					if self.player:getWeapon() and self.player:getWeapon():getId() == id then
+						local weapon = self.player:getWeapon():getRealCard():toWeapon()
+						rangefix = rangefix + weapon:getRange() - self.player:getAttackRange(false)
+					end
+					if self.player:inMyAttackRange(enemy, rangefix) then
+						table.insert(ids, id)
+					end
+				end
+			end
+			if #ids == 0 then return end
+			use.card = sgs.Card_Parse("#shanguang:"..ids[math.random(#ids)]..":")
+			if use.to then use.to:append(enemy) end
+			return
+		end
+	end
+end
+
+sgs.ai_use_value["shanguang"] = sgs.ai_use_value.Slash + 1
+sgs.ai_use_priority["shanguang"] = sgs.ai_use_priority.Slash + 1
+
+sgs.ai_skill_invoke.jingxin = function(self, data)
+	if (self.player:getHp() == 1 or (self:getCardsNum("Jink") + self:getCardsNum("Weapon")) > 1) and
+		#self.enemies == 1 and (self.enemies[1]:getHp() == 1 or (self.enemies[1]:getHp() > 1 and self.enemies[1]:getCardCount() <= 1)) then
+		return false
+	end
+	return true
+end
+
+sgs.ai_skill_invoke.chaojimoshi = function(self, data)
+	local can_attack = false
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:inMyAttackRange(enemy) then
+			can_attack = true
+			break
+		end
+	end
+	if can_attack and self:getCardsNum("Jink") > self.player:getMaxCards() then return false end
+	return true
+end
+
 --飞翼零式
 local wzpoint_skill = {}
 wzpoint_skill.name = "wzpoint"
@@ -1149,7 +1329,7 @@ liuxing_skill.getTurnUseCard = function(self, inclusive)
 	self:sortByUseValue(cards)
 	local newcards = {}
 	for _, card in ipairs(cards) do
-		if not isCard("Peach", card, self.player) and not (isCard("ExNihilo", card, self.player) and self.player:getPhase() == sgs.Player_Play) then table.insert(newcards, card) end
+		if not isCard("Peach", card, self.player) and not isCard("ExNihilo", card, self.player) then table.insert(newcards, card) end
 	end
 	if #newcards < 2 then return end
 
@@ -1581,13 +1761,6 @@ sgs.ai_skill_invoke.huanzhuang = function(self, data)
 	return false
 end
 
-sgs.ai_skill_invoke.huanzhuangex = function(self, data)
-	if willUse(self, "Slash") or self.player:getHandcardNum() > 2 then
-		return true
-	end
-	return false
-end
-
 --[[sgs.ai_skill_invoke.xiangzhuan = function(self, data)
 	return true
 end]]
@@ -1820,7 +1993,7 @@ qishe_skill.getTurnUseCard = function(self, inclusive)
 		for _,card in ipairs(cards) do
 			table.insert(ids, card:getId())
 		end
-		local card_str = ("fire_slash:qishe[%s:%s]=%s"):format("to_be_decided", -1, table.concat(ids, "+"))
+		local card_str = ("fire_slash:qishe[%s:%s]=%s"):format("to_be_decided", 0, table.concat(ids, "+"))
 		local card = sgs.Card_Parse(card_str)
 		return card
 	end
@@ -1868,7 +2041,7 @@ wenshen_skill.getTurnUseCard = function(self)
 	if (self:getCardsNum("EquipCard") < 2 and self:getCardsNum("Slash") == 0) or not sgs.Analeptic_IsAvailable(self.player) then
 		local newcards = {}
 		for _, card in ipairs(cards) do
-			if isCard("EquipCard", card, self.player) then table.insert(newcards, card) end
+			if isCard("EquipCard", card, self.player) and (not card:hasFlag("using")) then table.insert(newcards, card) end
 		end
 		if #newcards < 1 then return end
 
@@ -1935,7 +2108,7 @@ sgs.ai_view_as.wenshen = function(card, player, card_place)
 	local card_id = card:getEffectiveId()
 	local usereason = sgs.Sanguosha:getCurrentCardUseReason()
 	local pattern = sgs.Sanguosha:getCurrentCardUsePattern()
-	if card:isKindOf("EquipCard") then
+	if card:isKindOf("EquipCard") and (not card:hasFlag("using")) then
 		if pattern == "slash" and usereason == sgs.CardUseStruct_CARD_USE_REASON_RESPONSE_USE then
 			return ("slash:wenshen[%s:%s]=%d"):format(suit, number, card_id)
 		else
@@ -1967,7 +2140,7 @@ sgs.ai_skill_playerchosen.longqi = function(self, targets)
 	self:sort(targets, "handcard")
 	targets = sgs.reverse(targets)
 	for _,target in ipairs(targets) do
-		if self:isEnemy(target) then
+		if self:isEnemy(target) and (not target:isKongcheng()) then
 			return target
 		end
 	end
@@ -1994,6 +2167,56 @@ sgs.ai_skill_cardchosen["longqi"] = function(self, who, flags)
 	end
 	return cards[math.random(#cards)]
 end
+
+--混沌深渊大地
+sgs.ai_skill_use["@@hundun"] = function(self,prompt)
+    self:updatePlayers()
+    if #self.enemies > 0 then
+	    self:sort(self.enemies, "defenseSlash")
+		local selectset = {}
+		for _,enemy in ipairs(self.enemies) do
+			if not self:slashProhibit(sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuitBlack, 0), enemy) then
+				table.insert(selectset, enemy:objectName())
+			end
+			if #selectset >= 2 then break end
+	    end
+		if #selectset > 0 then
+		    return ("#hundun:.:->%s"):format(table.concat(selectset,"+"))
+		end
+    end
+    return "."
+end
+
+local dadi_skill={}
+dadi_skill.name="dadi"
+table.insert(sgs.ai_skills,dadi_skill)
+dadi_skill.getTurnUseCard=function(self)
+	if self.player:getHandcardNum() == 1 then
+		local card = self.player:getHandcards():first()
+		if (not isCard("ExNihilo", card, self.player)) and (not self.player:isWounded() or not isCard("Peach", card, self.player)) then
+			local suit = card:getSuitString()
+			local number = card:getNumberString()
+			local card_id = card:getEffectiveId()
+			local card_str = ("slash:dadi[%s:%s]=%d"):format(suit, number, card_id)
+			local slash = sgs.Card_Parse(card_str)
+			assert(slash)
+			return slash
+		end
+	end
+end
+
+sgs.ai_view_as.dadi = function(card, player, card_place)
+	local cd = player:getHandcards():first()
+	if player:getHandcardNum() == 1 and (player:isWounded() or not player:faceUp()) then
+		local suit = cd:getSuitString()
+		local number = cd:getNumberString()
+		local card_id = cd:getEffectiveId()
+		return ("slash:dadi[%s:%s]=%d"):format(suit, number, card_id)
+	end
+end
+
+sgs.ai_use_value["dadi"] = sgs.ai_use_value.Slash
+sgs.ai_use_priority["dadi"] = sgs.ai_use_priority.Slash + 1
 
 --脉冲
 sgs.ai_skill_choice.daohe = function(self, choices, data)
@@ -2027,6 +2250,263 @@ end
 sgs.ai_skill_invoke.jiying = function(self, data)
 	local damage = data:toDamage()
 	return self:isEnemy(damage.to)
+end
+
+--救世主
+sgs.ai_skill_invoke.shanzhuan = function(self, data)
+	return true
+end
+
+sgs.ai_skill_use["@@shanzhuan"] = function(self, prompt)
+    self:updatePlayers()
+	self:sort(self.enemies, "defenseSlash")
+	local id = tonumber(prompt)
+	local card = sgs.Sanguosha:getCard(id)
+	local targets = {}
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:canSlash(enemy) and not self:slashProhibit(card, enemy) then
+			table.insert(targets, enemy:objectName())
+			if (not card:isRed() and #targets == 1) or (card:isRed() and #targets == 2) then break end
+		end
+	end
+	if #targets > 0 then
+		return ("slash:shanzhuan[%s:%s]=%d->%s"):format(card:getSuitString(), card:getNumberString(), id, table.concat(targets, "+"))
+	else
+		return "."
+	end
+	return "."
+end
+
+sgs.ai_skill_invoke.zhongcheng = function(self, data)
+    local damage = data:toDamage()
+	return self:isEnemy(damage.from) and
+	not (damage.from:getEquips():length() == 1 and damage.from:getArmor() and damage.from:getArmor():getClassName() == "SilverLion")
+end
+
+--晓
+sgs.ai_skill_use["@@bachi"]=function(self,prompt)
+    self:updatePlayers()
+    if #self.enemies > 0 then
+	    self:sort(self.enemies, "defenseSlash")
+		local selectset = {}
+	    for _,enemy in ipairs(self.enemies) do
+			if (not enemy:isProhibited(enemy, sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuitRed, 0))) then
+				table.insert(selectset, enemy:objectName())
+			end
+			if #selectset >= 2 then break end
+	    end
+		if #selectset > 0 then
+			local cards = self.player:getCards("he")
+			cards = sgs.QList2Table(cards)
+			self:sortByUseValue(cards, true)
+		    return ("#bachi:%d:->%s"):format(cards[1]:getEffectiveId(), table.concat(selectset,"+"))
+		else
+		    return "."
+		end
+    end
+    return "."
+end
+
+local hubi_skill = {}
+hubi_skill.name = "hubi"
+table.insert(sgs.ai_skills, hubi_skill)
+hubi_skill.getTurnUseCard = function(self, inclusive)
+	if (not self.player:hasUsed("#hubi")) and self:getCardsNum("Jink") > 0 then
+		return sgs.Card_Parse("#hubi:.:")
+	end
+end
+
+sgs.ai_skill_use_func["#hubi"] = function(card, use, self)
+    local cards = sgs.QList2Table(self.player:getCards("h"))
+	self:sortByUseValue(cards, true)
+	self:sort(self.friends, "defenseSlash")
+	for _,card in ipairs(cards) do
+		for _,friend in ipairs(self.friends) do
+			local card_id = card:getId()
+			if card:isKindOf("Jink") then
+				use.card = sgs.Card_Parse("#hubi:"..card_id..":")
+				if use.to then use.to:append(friend) end
+				return
+			end
+		end
+	end
+end
+
+sgs.ai_use_value["hubi"] = 5
+sgs.ai_use_priority["hubi"] = 0.1
+
+--突击自由
+local daijin_skill = {}
+daijin_skill.name = "daijin"
+table.insert(sgs.ai_skills, daijin_skill)
+daijin_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:hasUsed("daijin") then return false end
+	local cards = self.player:getCards("h")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards)
+	local newcards = {}
+	local ids = {}
+	for _, card in ipairs(cards) do
+		if not isCard("Peach", card, self.player) and not isCard("ExNihilo", card, self.player) then
+			table.insert(newcards, card)
+			table.insert(ids, card:getEffectiveId())
+		end
+	end
+	if #newcards < 2 then return end
+
+	local card_id1 = newcards[1]:getEffectiveId()
+	local card_id2 = newcards[2]:getEffectiveId()
+
+	if newcards[1]:isBlack() and newcards[2]:isBlack() then
+		local black_slash = sgs.Sanguosha:cloneCard("fire_slash", sgs.Card_NoSuitBlack)
+		black_slash:setSkillName("daijin")
+		local nosuit_slash = sgs.Sanguosha:cloneCard("fire_slash")
+		nosuit_slash:setSkillName("daijin")
+
+		self:sort(self.enemies, "defenseSlash")
+		for _, enemy in ipairs(self.enemies) do
+			if self.player:canSlash(enemy) and not self:slashProhibit(nosuit_slash, enemy) and self:slashIsEffective(nosuit_slash, enemy)
+				and self:canAttack(enemy) and self:slashProhibit(black_slash, enemy) and self:isWeak(enemy) then
+				local redcards, blackcards = {}, {}
+				for _, acard in ipairs(newcards) do
+					if acard:isBlack() then table.insert(blackcards, acard) else table.insert(redcards, acard) end
+				end
+				if #redcards == 0 then break end
+
+				local redcard, othercard
+
+				self:sortByUseValue(blackcards, true)
+				self:sortByUseValue(redcards, true)
+				redcard = redcards[1]
+
+				othercard = #blackcards > 0 and blackcards[1] or redcards[2]
+				if redcard and othercard then
+					card_id1 = redcard:getEffectiveId()
+					card_id2 = othercard:getEffectiveId()
+					break
+				end
+			end
+		end
+	end
+	
+	local card_str = ("fire_slash:daijin[%s:%s]=%d+%d"):format("to_be_decided", 0, card_id1, card_id2)
+	
+	if self.player:getMark("@seedsf") > 0 and self.player:getHandcardNum() > self.player:getMaxCards() + 1 and #self.enemies > 2 then
+		card_str = ("fire_slash:daijin[%s:%s]=%s"):format("to_be_decided", 0, table.concat(ids, "+", 1, #self.enemies))
+	end
+	
+	local slash = sgs.Card_Parse(card_str)
+	return slash
+end
+
+sgs.ai_use_value["daijin"] = sgs.ai_use_value.FireSlash + 0.1
+sgs.ai_use_priority["daijin"] = sgs.ai_use_priority.FireSlash
+
+sgs.ai_skill_choice.daijin = function(self, choices, data)
+	local choice = choices:split("+")
+	return choice[math.random(1, #choice)]
+end
+
+sgs.ai_skill_invoke.chaoqi = function(self, data)
+    local use = data:toCardUse()
+	return not self:isFriend(use.from)
+end
+
+--无限正义
+sgs.ai_skill_invoke.hanwei = function(self, data)
+	local name = data:toString():split(":")[3]
+	local enemy = findPlayerByObjectName(self.room, name)
+	return enemy and self:isEnemy(enemy)
+end
+
+sgs.ai_skill_use["@@shijiu"] = function(self, prompt)
+    self:updatePlayers()
+	self:sort(self.enemies, "defenseSlash")
+	local targets = {}
+	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:canSlash(enemy) and not self:slashProhibit(slash, enemy) then
+			if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, slash) then break end
+			table.insert(targets, enemy:objectName())
+		end
+	end
+	if #targets > 0 then
+		local cards = self.player:getCards("h")
+		cards = sgs.QList2Table(cards)
+		self:sortByUseValue(cards, true)
+		local suits = {}
+		for _,cd in sgs.qlist(self.player:getEquips()) do
+			local suit = cd:getSuit()
+			if not table.contains(suits, suit) then
+				table.insert(suits, suit)
+			end
+		end
+		for _,card in ipairs(cards) do
+			if table.contains(suits, card:getSuit()) then
+				return ("slash:shijiu[%s:%s]=%d->%s"):format(card:getSuitString(), card:getNumberString(), card:getEffectiveId(), table.concat(targets, "+"))
+			end
+		end
+	else
+		return "."
+	end
+	return "."
+end
+
+--命运
+sgs.ai_skill_invoke.huanyi = function(self, data)
+	return true
+end
+
+sgs.ai_view_as.huanyi = function(card, player, card_place)
+	if player:getMark("@huanyi") == 0 then return false end
+	local suit = card:getSuitString()
+	local number = card:getNumberString()
+	local card_id = card:getEffectiveId()
+	if card:isRed() and card_place == sgs.Player_PlaceHand then
+		return ("jink:huanyi[%s:%s]=%d"):format(suit, number, card_id)
+	end
+end
+
+--传说
+sgs.ai_skill_invoke.jiqi = function(self, data)
+	return true
+end
+
+sgs.ai_skill_use["@@jiqi"] = function(self,prompt)
+    self:updatePlayers()
+    if #self.enemies > 0 then
+	    self:sort(self.enemies, "defense")
+		local selectset = {}
+		for _,enemy in ipairs(self.enemies) do
+			table.insert(selectset, enemy:objectName())
+			if #selectset >= self.player:getMark("jiqi") then break end
+	    end
+		if #selectset > 0 then
+		    return ("#jiqi:.:->%s"):format(table.concat(selectset,"+"))
+		end
+    end
+    return "."
+end
+
+--[[sgs.ai_skill_invoke.kelong = function(self, data)
+	local dying = data:toDying()
+	local damage = dying.damage
+	local from = damage.from
+	return self:isEnemy(from)
+end]]
+
+sgs.ai_skill_invoke.kelong = function(self, data)
+	return true
+end
+
+sgs.ai_view_as.kelong = function(card, player, card_place)
+	if player:getPile("kelong"):isEmpty() then return false end
+	local suit = card:getSuitString()
+	local number = card:getNumberString()
+	local card_id = card:getEffectiveId()
+	if player:getPileName(card_id) == "kelong" then
+		return ("jink:kelong[%s:%s]=%d"):format(suit, number, card_id)
+	end
 end
 
 --艾斯亚R
@@ -2292,7 +2772,7 @@ local reborns_transam_skill = {}
 reborns_transam_skill.name = "reborns_transam"
 table.insert(sgs.ai_skills, reborns_transam_skill)
 reborns_transam_skill.getTurnUseCard = function(self, inclusive)
-    if self.player:getMark("@reborns_transam") > 0 and (self:getCardsNum("FireSlash") + self:getCardsNum("ThunderSlash")) > 1 then
+    if self.player:getMark("@reborns_transam") > 0 and (self:getCardsNum("FireSlash") + self:getCardsNum("ThunderSlash")) > 1 and #self.enemies > 0 then
 		return sgs.Card_Parse("#reborns_transam:.:")
 	end
 end
@@ -2464,6 +2944,7 @@ ronghe_skill.name="ronghe"
 table.insert(sgs.ai_skills,ronghe_skill)
 ronghe_skill.getTurnUseCard=function(self,inclusive)
     if not self.player:hasUsed("#ronghe") then
+		if #self.enemies == 0 and #self.friends_noself == 0 then return false end
 		for _,p in sgs.qlist(self.room:getOtherPlayers(self.player)) do
 			if not p:isKongcheng() and p:getHp() > self.player:getHp() then
 				local card_str = ("#ronghe:.:")
@@ -2535,6 +3016,101 @@ sgs.ai_skill_cardchosen["lijie"] = function(self, who, flags)
 	return nil
 end
 
+--00QFS
+sgs.ai_skill_invoke.quanren = function(self, data)
+	local want_attack = false
+	self:sort(self.enemies, "defenseSlash")
+	for _,enemy in ipairs(self.enemies) do
+		if self.player:canSlash(enemy) and not self:slashProhibit(sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0), enemy) then
+			want_attack = true
+			break
+		end
+	end
+	if self.player:hasSkill("fs_transam") and self.player:getMark("@fs_transam") > 0 then
+		return (willUse(self, "Slash") and self:getCardsNum("Slash") >= 2) or (self:getCardsNum("Slash") == 0 and want_attack)
+	end
+	return self:getCardsNum("Slash") == 0 and want_attack
+end
+
+local quanren_skill={}
+quanren_skill.name="quanren"
+table.insert(sgs.ai_skills,quanren_skill)
+quanren_skill.getTurnUseCard=function(self)
+	local cards = self.player:getCards("h")
+	cards=sgs.QList2Table(cards)
+
+	local list = self.player:property("quanren"):toString():split("+")
+	if #list == 0 then return false end
+
+	local handcard
+
+	self:sortByUseValue(cards,true)
+
+	for _,card in ipairs(cards)  do
+		if (table.contains(list, tostring(card:getEffectiveId()))) and (not card:isKindOf("Slash")) and (not isCard("Peach", card, self.player)) and (not isCard("ExNihilo", card, self.player)) then
+			handcard = card
+			break
+		end
+	end
+
+	if not handcard then return nil end
+	local suit = handcard:getSuitString()
+	local number = handcard:getNumberString()
+	local card_id = handcard:getEffectiveId()
+	local card_str = ("slash:quanren[%s:%s]=%d"):format(suit, number, card_id)
+	local slash = sgs.Card_Parse(card_str)
+	assert(slash)
+
+	return slash
+
+end
+
+sgs.ai_view_as.quanren = function(card, player, card_place)
+	local list = player:property("quanren"):toString():split("+")
+	if #list == 0 then return false end
+
+	local suit = card:getSuitString()
+	local number = card:getNumberString()
+	local card_id = card:getEffectiveId()
+	if card_place == sgs.Player_PlaceHand and table.contains(list, tostring(card_id)) then
+		return ("slash:quanren[%s:%s]=%d"):format(suit, number, card_id)
+	end
+end
+
+sgs.ai_use_value["quanren"] = sgs.ai_use_value.Slash
+sgs.ai_use_priority["quanren"] = sgs.ai_use_priority.Slash + 0.1
+
+sgs.ai_skill_choice.quanren = function(self, choices, data)
+	choices = {"quanrenpile", "quanrenpile", "quanrenhand"}
+	return choices[math.random(3)]
+end
+
+sgs.ai_skill_invoke.yueqian = function(self, data)
+	return true
+end
+
+local fs_transam_skill = {}
+fs_transam_skill.name = "fs_transam"
+table.insert(sgs.ai_skills, fs_transam_skill)
+fs_transam_skill.getTurnUseCard = function(self, inclusive)
+	local slash_count = 0
+	for _,card in sgs.qlist(self.player:getHandcards()) do
+		if card:isKindOf("Slash") then
+			slash_count = slash_count + 1
+		end
+	end
+    if self.player:getMark("@fs_transam") > 0 and willUse(self, "Slash") and slash_count >= 2 then
+		return sgs.Card_Parse("#fs_transam:.:")
+	end
+end
+
+sgs.ai_skill_use_func["#fs_transam"] = function(card, use, self)
+	use.card = card
+end
+
+sgs.ai_use_value["fs_transam"] = sgs.ai_use_value.Slash + 0.2
+sgs.ai_use_priority["fs_transam"] = sgs.ai_use_priority.Slash + 0.05
+
 --星创突击
 sgs.ai_skill_invoke.jieneng = function(self, data)
 	return not (self.player:getMark("@shineng") == 0 and self:getCardsNum("Jink") > 0)
@@ -2572,6 +3148,8 @@ sgs.ai_skill_choice.tiexue = function(self, choices, data)
 	end
 	return "tiexuedraw"
 end
+
+sgs.ai_skill_invoke.zhuisha = true
 
 function getTurnUse(self)
     local cards = {}
