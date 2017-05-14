@@ -8907,7 +8907,7 @@ mingren = sgs.CreateTriggerSkill
 	frequency = sgs.Skill_Compulsory,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-	    local damage = data:toDamage()
+		local damage = data:toDamage()
 		if damage.card and damage.card:isKindOf("Duel") then
 			room:sendCompulsoryTriggerLog(player, self:objectName())
 			room:setEmotion(player, "skill_nullify")
