@@ -296,18 +296,22 @@ equipprohibit = sgs.CreateProhibitSkill
 --【阵亡特效】
 gdsrule = sgs.CreateTriggerSkill{
 	name = "gdsrule",
-	events = {sgs.Death--[[,sgs.GameStart]]},
+	events = {sgs.GameOverJudge--[[,sgs.GameStart]]},
 	global = true,
 	can_trigger = function(self, player)
 		return gg_effect
 	end,
 	on_trigger = function(self, event, player, data)
 	    local room = player:getRoom()
-	if event == sgs.Death then
+	if event == sgs.GameOverJudge then
 	    local death = data:toDeath()
 		if death.who:objectName() == player:objectName() then
-			if death.damage and death.damage.from and string.find(death.damage.from:getGeneralName(), "FREEDOM") and death.who:getGeneralName() == "SAVIOUR" then
-				room:doLightbox("image=image/animate/FREEDOM_SAVIOUR.png", 1000)
+			if death.damage and death.damage.from and string.find(death.damage.from:getGeneralName(), "FREEDOM") then
+				if death.who:getGeneralName() == "PROVIDENCE" then
+					room:doLightbox("image=image/animate/FREEDOM_PROVIDENCE.png", 1000)
+				elseif death.who:getGeneralName() == "SAVIOUR" then
+					room:doLightbox("image=image/animate/FREEDOM_SAVIOUR.png", 1000)
+				end
 			elseif ((death.damage and death.damage.from and death.damage.from:getGeneralName() == "IMPULSE") or death.who:hasFlag("IMPULSE_FREEDOM"))
 				and string.find(death.who:getGeneralName(), "FREEDOM") then
 				room:doLightbox("image=image/animate/IMPULSE_FREEDOM.png", 1000)
@@ -572,9 +576,13 @@ end
 
 --【武将解锁系统】
 if dlc then
-	file = assert(io.open(gdata, "r"), "在根目录创建一个空的g.lua档案即可解决问题poi")
-	t = file:read("*all"):split("\n")
-	file:close()
+	--file = assert(io.open(gdata, "r"), "在根目录创建一个空的g.lua档案即可解决问题poi")
+	file = io.open(gdata, "r")
+	t = {}
+	if file ~= nil then
+		t = file:read("*all"):split("\n")
+		file:close()
+	end
 end
 
 gdsrecord = sgs.CreateTriggerSkill{
@@ -1827,22 +1835,22 @@ qingyu = sgs.CreateTriggerSkill{
 		    show:append(d)
 		end
 		room:fillAG(show)
-			if #qingyuspade > 0 then
+			if #qingyuspade > 0 and player:isAlive() then
 			    room:setPlayerMark(player, "qingyuspade", 1)
 				room:askForUseCard(player, "@@qingyu", "#qingyu1")
 				room:setPlayerMark(player, "qingyuspade", 0)
 			end
-			if #qingyuheart > 0 then
+			if #qingyuheart > 0 and player:isAlive() then
 			    room:setPlayerMark(player, "qingyuheart", 1)
 				room:askForUseCard(player, "@@qingyu", "#qingyu2")
 				room:setPlayerMark(player, "qingyuheart", 0)
 			end
-			if #qingyuclub > 0 then
+			if #qingyuclub > 0 and player:isAlive() then
 			    room:setPlayerMark(player, "qingyuclub", 1)
 				room:askForUseCard(player, "@@qingyu", "#qingyu3")
 				room:setPlayerMark(player, "qingyuclub", 0)
 			end
-			if #qingyudiamond > 0 then
+			if #qingyudiamond > 0 and player:isAlive() then
 			    room:setPlayerMark(player, "qingyudiamond", 1)
 				room:askForUseCard(player, "@@qingyu", "#qingyu4")
 				room:setPlayerMark(player, "qingyudiamond", 0)
@@ -6481,7 +6489,10 @@ xinnian = sgs.CreateTriggerSkill
 					if #record > 0 then
 						p:setTag("xinnian_record", sgs.QVariant(table.concat(record, "+")))
 					end
+					--room:addPlayerMark(p, "@skill_invalidity")
+					--room:filterCards(p, p:getCards("he"), true)
 				end
+				--room:doBroadcastNotify(sgs.CommandType.S_COMMAND_LOG_EVENT, json.encode({9}))
 			elseif change.from ~= sgs.Player_NotActive and change.to == sgs.Player_NotActive then
 				for _,p in sgs.qlist(room:getOtherPlayers(player)) do
 					local record = p:getTag("xinnian_record"):toString()
@@ -6492,7 +6503,10 @@ xinnian = sgs.CreateTriggerSkill
 						end
 						p:setTag("xinnian_record", sgs.QVariant())
 					end
+					--room:removePlayerMark(p, "@skill_invalidity")
+					--room:filterCards(p, p:getCards("he"), false)
 				end
+				--room:doBroadcastNotify(sgs.CommandType.S_COMMAND_LOG_EVENT, json.encode({9}))
 			end
 		else
 			local damage = data:toDamage()
@@ -6598,7 +6612,7 @@ luanzhan = sgs.CreateTriggerSkill
 			local x = room:alivePlayerCount()
 			local gain = "qishe"
 			local lose = "huiwu"
-			if x <=3 then
+			if x <= 3 then
 				gain = "huiwu"
 				lose = "qishe"
 			end
@@ -6629,7 +6643,7 @@ luanzhane = sgs.CreateTriggerSkill
 			local x = room:alivePlayerCount()
 			local gain = "qishe"
 			local lose = "huiwu"
-			if x <=3 then
+			if x <= 3 then
 				gain = "huiwu"
 				lose = "qishe"
 			end
@@ -7009,14 +7023,14 @@ daijin = sgs.CreateTriggerSkill
 daijina = sgs.CreateTriggerSkill
 {
 	name = "#daijina",
-	events = {sgs.EventPhaseChanging},
+	events = {sgs.TurnStart, sgs.EventPhaseChanging},
 	can_trigger = function(self, player)
 		return player and player:isAlive() and player:getTag("daijin_record"):toString() ~= ""
 	end,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-		local change = data:toPhaseChange()
-		if change.from ~= sgs.Player_NotActive and change.to == sgs.Player_NotActive then
+		if (event == sgs.TurnStart and not player:faceUp())
+			or (event == sgs.EventPhaseChanging and data:toPhaseChange().from ~= sgs.Player_NotActive and data:toPhaseChange().to == sgs.Player_NotActive) then
 			local record = player:getTag("daijin_record"):toString()
 			local log = sgs.LogMessage()
 			log.type = "$DaijinReset"
@@ -7244,6 +7258,13 @@ feiniao = sgs.CreateTriggerSkill{
 					tslash:setSkillName(use.card:getSkillName())
 				else
 					tslash:setSkillName("feiniaocard")
+				end
+				if use.card:hasFlag("drank") then --Analeptic
+					room:setCardFlag(use.card, "-drank")
+					room:setCardFlag(tslash, "drank")
+					local x = use.card:getTag("drank"):toInt()
+					tslash:setTag("drank", sgs.QVariant(x))
+					use.card:setTag("drank", sgs.QVariant(0))
 				end
 				use.card = tslash
 				data:setValue(use)
@@ -8214,7 +8235,7 @@ HARUTE:addSkill(liuyan)
 HARUTE:addSkill(HARUTE_TRANSAM)
 HARUTE:addSkill(HARUTE_TRANSAMslash)
 HARUTE:addSkill(HARUTE_TRANSAMmark)
-extension:insertRelatedSkills("harute_transam", "#harute_transamslash")
+--extension:insertRelatedSkills("harute_transam", "#harute_transamslash")
 
 --[[ELSQ = sgs.General(extension, "ELSQ", "CB", 3, true, dlc, dlc)
 if dlc then
@@ -8702,8 +8723,9 @@ FS:addSkill(FS_TRANSAM)
 FS:addSkill(FS_TRANSAMr)
 FS:addSkill(FS_TRANSAMt)
 FS:addSkill(FS_TRANSAMmark)
-extension:insertRelatedSkills("fs_transam", "#fs_transamr")
-extension:insertRelatedSkills("fs_transam", "#fs_transamt")
+--extension:insertRelatedSkills("fs_transam", "#fs_transamr")
+--extension:insertRelatedSkills("fs_transam", "#fs_transamt")
+
 SBS = sgs.General(extension, "SBS", "OTHERS")
 
 jieneng = sgs.CreateTriggerSkill{
@@ -8872,9 +8894,184 @@ if not sgs.Sanguosha:getSkill("#tiequanf") then skills:append(tiequanf) end
 sgs.Sanguosha:addSkills(skills)
 SBS:addRelateSkill("tiequan")
 extension:insertRelatedSkills("jieneng", "#jienengh")
-extension:insertRelatedSkills("shineng", "#shinengr")
-extension:insertRelatedSkills("shineng", "#shinengt")
+--extension:insertRelatedSkills("shineng", "#shinengr")
+--extension:insertRelatedSkills("shineng", "#shinengt")
 extension:insertRelatedSkills("tiequan", "#tiequanf")
+
+DARK_MATTER = sgs.General(extension, "DARK_MATTER", "OTHERS", 3, true, false)
+
+mingren = sgs.CreateTriggerSkill
+{
+	name = "mingren",
+	events = {sgs.DamageInflicted},
+	frequency = sgs.Skill_Compulsory,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+	    local damage = data:toDamage()
+		if damage.card and damage.card:isKindOf("Duel") then
+			room:sendCompulsoryTriggerLog(player, self:objectName())
+			room:setEmotion(player, "skill_nullify")
+			return true
+		end
+	end
+}
+
+binghuo = sgs.CreateTriggerSkill{
+	name = "binghuo",
+	events = {sgs.TargetSpecified, sgs.ConfirmDamage, sgs.Damage},
+	frequency = sgs.Skill_Compulsory,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if event == sgs.TargetSpecified then
+			local use = data:toCardUse()
+			if use.card and use.card:isKindOf("Slash") then
+				room:sendCompulsoryTriggerLog(player, self:objectName())
+				local fire = false
+				local jink_table = sgs.QList2Table(player:getTag("Jink_" .. use.card:toString()):toIntList())
+				local index = 1
+				for _,p in sgs.qlist(use.to) do
+					if p:getMark("@ice") == 0 then
+						room:broadcastSkillInvoke("gdsbgm", 5)
+						room:setEmotion(p, "ice")
+						p:gainMark("@ice")
+						room:addPlayerMark(p, "Equips_Nullified_to_Yourself")
+						use.to:removeOne(p)
+					else
+						if not fire then
+							fire = true
+							room:broadcastSkillInvoke("gdsbgm", 6)
+							if not use.card:isKindOf("FireSlash") then
+								room:setEmotion(player, "fire_slash")
+								local log = sgs.LogMessage()
+								log.type = "#CardViewAs"
+								log.from = player
+								log.arg = "fire_slash"
+								log.card_str = use.card:toString()
+								room:sendLog(log)
+								local fslash = sgs.Sanguosha:cloneCard("fire_slash", use.card:getSuit(), use.card:getNumber())
+								fslash:addSubcard(use.card)
+								if use.card:getSkillName() ~= "" then
+									fslash:setSkillName(use.card:getSkillName())
+								else
+									fslash:setSkillName("binghuocard")
+								end
+								if use.card:hasFlag("drank") then --Analeptic
+									room:setCardFlag(use.card, "-drank")
+									room:setCardFlag(fslash, "drank")
+									local x = use.card:getTag("drank"):toInt()
+									fslash:setTag("drank", sgs.QVariant(x))
+									use.card:setTag("drank", sgs.QVariant(0))
+								end
+								use.card = fslash
+							end
+						end
+						jink_table[index] = 0
+						index = index + 1
+						local jink_data = sgs.QVariant()
+						jink_data:setValue(Table2IntList(jink_table))
+						player:setTag("Jink_" .. use.card:toString(), jink_data)
+					end
+				end
+				data:setValue(use)
+			end
+		elseif event == sgs.ConfirmDamage then
+			local damage = data:toDamage()
+			if damage.chain or damage.transfer then return false end
+			if damage.card and damage.card:isKindOf("FireSlash") and damage.to:getMark("@ice") > 0 then
+				local log = sgs.LogMessage()
+				log.type = "#tiexuedamage"
+				log.from = player
+				log.to:append(damage.to)
+				log.card_str = damage.card:toString()
+				log.arg = damage.damage
+				log.arg2 = damage.damage + 1
+				room:sendLog(log)
+				damage.damage = damage.damage + 1
+				data:setValue(damage)
+			end
+		else
+			local damage = data:toDamage()
+			if damage.card and damage.card:isKindOf("FireSlash") and damage.to:getMark("@ice") > 0 then
+				damage.to:loseMark("@ice")
+				room:removePlayerMark(damage.to, "Equips_Nullified_to_Yourself")
+			end
+		end
+	end
+}
+
+DM_TRANSAMcard = sgs.CreateSkillCard{ --tassel/slumber/insomniac神之lua
+	name = "dm_transam",
+	target_fixed = true,
+	will_throw = false,
+	on_use = function(self, room, source, targets)
+		source:loseMark("@dm_transam")
+		local count = self:subcardsLength()
+		room:setPlayerMark(source, "dm_transammark", count)
+		room:broadcastSkillInvoke("gdsbgm", 3)
+		room:doLightbox("image=image/animate/TRANS-AM.png", 1500)
+		
+		if source:getMark("drank") == 0 then --Mask
+			room:addPlayerMark(source, "drank")
+			source:setMark("drank", 0)
+		end
+		
+		local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_NATURAL_ENTER, source:objectName(), self:objectName(), nil)
+		room:throwCard(self, reason, nil)
+		room:drawCards(source, count)
+	end
+}
+
+DM_TRANSAMvs = sgs.CreateZeroCardViewAsSkill{
+	name = "dm_transam",
+	view_as = function(self, cards)
+		local acard = DM_TRANSAMcard:clone()
+		local equips = sgs.Self:getEquips()
+		acard:addSubcards(equips)
+		return acard
+	end,
+	enabled_at_play = function(self, player)
+		return player:getMark("@dm_transam") > 0 and not player:getEquips():isEmpty()
+	end
+}
+
+DM_TRANSAM = sgs.CreateGameStartSkill{
+	name = "dm_transam",
+	frequency = sgs.Skill_Limited,
+	limit_mark = "@dm_transam",
+	view_as_skill = DM_TRANSAMvs,
+	on_gamestart = function(self, player)
+	end
+}
+
+DM_TRANSAMslash = sgs.CreateTargetModSkill{
+	name = "#dm_transamslash",
+	pattern = "Slash",
+	residue_func = function(self, player)
+		if player and player:hasUsed("#dm_transam") and player:getMark("dm_transammark") > 0 then
+			return player:getMark("dm_transammark")
+		else
+			return 0
+		end
+	end
+}
+
+DM_TRANSAMmark = sgs.CreateTriggerSkill{
+	name = "#dm_transammark",
+	events = {sgs.EventPhaseChanging},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getMark("dm_transammark") > 0 and data:toPhaseChange().to == sgs.Player_NotActive then --Clear mask
+			room:setPlayerMark(player, "dm_transammark", 0)
+			room:setPlayerMark(player, "drank", 0)
+		end
+	end
+}
+
+DARK_MATTER:addSkill(mingren)
+DARK_MATTER:addSkill(binghuo)
+DARK_MATTER:addSkill(DM_TRANSAM)
+DARK_MATTER:addSkill(DM_TRANSAMslash)
+DARK_MATTER:addSkill(DM_TRANSAMmark)
 
 BUILD_BURNING = sgs.General(extension, "BUILD_BURNING", "OTHERS", 4, true, true)
 
@@ -9139,11 +9336,12 @@ sgs.LoadTranslationTable{
 	["BGM20"] = "♪ FIGHT",
 	["BGM21"] = "♪ GUNDAM BUILD FIGHTERS",
 	["BGM22"] = "♪ 宇宙を駆ける",
-	["BGM23"] = "♪ Mobile Suit Gundam- Iron-Blooded Orphan",
+	["BGM23"] = "♪ Mobile Suit Gundam - Iron-Blooded Orphans",
 	["BGM24"] = "♪ 颯爽たるシャア",
 	["BGM25"] = "♪ 燃えあがれ闘志 - 忌まわしき宿命を越えて",
 	["BGM26"] = "♪ 叫びと撃鉄",
 	["BGM27"] = "♪ キラ、その心のままに",
+	["BGM28"] = "♪ Crescent Moon - Mobile Suit Gundam : Iron-Blooded Orphans 2",
 	
 	["IIVS"] = "辉勇面",
 	["#IIVS"] = "极限全力",
@@ -10243,7 +10441,7 @@ sgs.LoadTranslationTable{
 	["quanrenpile"] = "选择明置的手牌",
 	["quanrenhand"] = "选择其他的手牌",
 	["yueqian"] = "跃迁",
-	[":yueqian"] = "<img src=\"image/mark/@yueqian.png\">每名角色的回合內限一次，当你对攻击范围内的角色造成伤害后，你可以摸一张牌并明置之，若为红色，你下一次需要使用或打出【闪】时，视为你使用或打出一张【闪】。",
+	[":yueqian"] = "<img src=\"image/mark/@yueqian.png\">每名角色的回合內限一次，当你对攻击范围内的角色造成伤害后，你可以摸一张牌并明置之，若为<font color='red'><b>红色</b></font>，你下一次需要使用或打出【闪】时，视为你使用或打出一张【闪】。",
 	["@yueqian"] = "跃迁",
 	["#yueqian"] = "%from 下一次需要使用或打出【闪】时，视为其使用或打出一张【闪】",
 	["fs_transam"] = "TRANS-AM",
@@ -10272,6 +10470,26 @@ sgs.LoadTranslationTable{
 	["@rg"] = "RG",
 	["tiequan"] = "铁拳",
 	[":tiequan"] = "<b><font color='blue'>锁定技，</font></b>你对其他角色造成的伤害+1；你的单数【闪】视为【杀】。",
+	
+	["DARK_MATTER"] = "暗物质",
+	["#DARK_MATTER"] = "冰火能天使",
+	["~DARK_MATTER"] = "",
+	["designer:DARK_MATTER"] = "wch5621628 & Sankies & NOS7IM",
+	["cv:DARK_MATTER"] = "结城·达也",
+	["illustrator:DARK_MATTER"] = "Sankies",
+	["mingren"] = "名人",
+	[":mingren"] = "<b><font color='blue'>锁定技，</font></b>你防止【决斗】对你造成的伤害。",
+	["binghuo"] = "冰火",
+	[":binghuo"] = "<img src=\"image/mark/@ice.png\"><b><font color='blue'>锁定技，</font></b>当你使用【杀】指定一名角色为目标后：\
+①若其没有<b>“冰封”</b>标记：其获得<b>“冰封”</b>标记，终止此牌结算。\
+②若其拥有<b>“冰封”</b>标记：此【杀】视为火【杀】，伤害+1，且\
+不可被【闪】响应，造成伤害后，其失去<b>“冰封”</b>标记。\
+●拥有<b>“冰封”</b>标记的角色装备无效。",
+	["binghuocard"] = "冰火",
+	["@ice"] = "冰封",
+	["dm_transam"] = "TRANS-AM",
+	[":dm_transam"] = "<img src=\"image/mark/@dm_transam.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以将装备区的所有牌（至少一张）置入弃牌堆，若如此做，你摸等量张牌，此阶段你可以额外使用等量张【杀】。",
+	["@dm_transam"] = "TRANS-AM",
 	
 	["BUILD_BURNING"] = "创制燃焰",
 	["#BUILD_BURNING"] = "呼唤风的少年",

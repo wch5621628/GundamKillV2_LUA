@@ -3137,6 +3137,41 @@ sgs.ai_skill_invoke.rg = function(self, data)
 	return self.player:getMark("@shineng") == 0
 end
 
+--暗物质
+local dm_transam_skill = {}
+dm_transam_skill.name = "dm_transam"
+table.insert(sgs.ai_skills, dm_transam_skill)
+dm_transam_skill.getTurnUseCard = function(self, inclusive)
+	local equips = self.player:getEquips()
+	local installed, unlimited = true, false
+	if (self:getCardsNum("Weapon") > 0 and self.player:getWeapon() == nil)
+		or (self:getCardsNum("Armor") > 0 and self.player:getArmor() == nil)
+		or (self:getCardsNum("DefensiveHorse") > 0 and self.player:getDefensiveHorse() == nil)
+		or (self:getCardsNum("OffensiveHorse") > 0 and self.player:getOffensiveHorse() == nil)
+		or (self:getCardsNum("Treasure") > 0 and self.player:getTreasure() == nil) then
+		installed = false
+	end
+	if self.player:getWeapon() and self.player:getWeapon():getClassName() == "Crossbow" then
+		unlimited = true
+	end
+    if self.player:getMark("@dm_transam") > 0 and equips:length() > 0 and installed
+		and ((willUse(self, "Slash") and (not unlimited) and self:getCardsNum("Slash") > (2 - math.floor(equips:length() / 2)))
+		or (self.player:getHp() <= 1 and self.player:getHandcardNum() <= 1)) then
+		local ids = {}
+		for _,card in sgs.qlist(equips) do
+			table.insert(ids, card:getId())
+		end
+		return sgs.Card_Parse("#dm_transam:"..(table.concat(ids, "+"))..":")
+	end
+end
+
+sgs.ai_skill_use_func["#dm_transam"] = function(card, use, self)
+	use.card = card
+end
+
+sgs.ai_use_value["dm_transam"] = sgs.ai_use_value.Slash + 0.2
+sgs.ai_use_priority["dm_transam"] = sgs.ai_use_priority.Slash + 0.05
+
 --巴巴托斯
 sgs.ai_skill_invoke.tiexue = function(self, data)
 	return true
