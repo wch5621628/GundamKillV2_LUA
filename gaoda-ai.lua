@@ -1,3 +1,94 @@
+--用于定义function willUse(self, className)
+function getTurnUse(self)
+    local cards = {}
+    for _ ,c in sgs.qlist(self.player:getHandcards()) do
+        if c:isAvailable(self.player) then table.insert(cards, c) end
+    end
+    for _, id in sgs.qlist(self.player:getHandPile()) do
+        local c = sgs.Sanguosha:getCard(id)
+        if c:isAvailable(self.player) then table.insert(cards, c) end
+    end
+    if self.player:hasSkill("taoxi") and self.player:hasFlag("TaoxiRecord") then
+        local taoxi_id = self.player:getTag("TaoxiId"):toInt()
+        if taoxi_id and taoxi_id >= 0 then
+            local taoxi_card = sgs.Sanguosha:getCard(taoxi_id)
+            table.insert(cards, taoxi_card)
+        end
+    end
+
+	if self.player:hasSkill("ronghe") then
+		local list = self.player:property("ronghe"):toString():split("+")
+		if #list > 0 then
+			for _,l in ipairs(list) do
+				local id = tonumber(l)
+				if id and id >= 0 then
+					local ronghe_card = sgs.Sanguosha:getCard(id)
+					table.insert(cards, ronghe_card)
+				end
+			end
+		end
+    end
+	
+    local turnUse = {}
+    local slash = sgs.Sanguosha:cloneCard("slash")
+    local slashAvail = 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, self.player, slash)
+    self.slashAvail = slashAvail
+    self.predictedRange = self.player:getAttackRange()
+    self.slash_distance_limit = (1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_DistanceLimit, self.player, slash) > 50)
+
+    self.weaponUsed = false
+	--self:fillSkillCards(cards) 万恶的无限循环！！！！！
+    self:sortByUseValue(cards)
+
+    if self.player:hasWeapon("crossbow") or #self.player:property("extra_slash_specific_assignee"):toString():split("+") > 1 then
+        slashAvail = 100
+        self.slashAvail = slashAvail
+    elseif self.player:hasWeapon("vscrossbow") then
+        slashAvail = slashAvail + 3
+        self.slashAvail = slashAvail
+    end
+
+    for _, card in ipairs(cards) do
+        local dummy_use = { isDummy = true }
+
+        local type = card:getTypeId()
+        self["use" .. sgs.ai_type_name[type + 1] .. "Card"](self, card, dummy_use)
+
+        if dummy_use.card then
+            if dummy_use.card:isKindOf("Slash") then
+                if slashAvail > 0 then
+                    slashAvail = slashAvail - 1
+                    table.insert(turnUse, dummy_use.card)
+                elseif dummy_use.card:hasFlag("AIGlobal_KillOff") then table.insert(turnUse, dummy_use.card) end
+            else
+                if self.player:hasFlag("InfinityAttackRange") or self.player:getMark("InfinityAttackRange") > 0 then
+                    self.predictedRange = 10000
+                elseif dummy_use.card:isKindOf("Weapon") then
+                    self.predictedRange = sgs.weapon_range[card:getClassName()]
+                    self.weaponUsed = true
+                else
+                    self.predictedRange = 1
+                end
+                if dummy_use.card:objectName() == "Crossbow" then slashAvail = 100 self.slashAvail = slashAvail end
+                if dummy_use.card:objectName() == "VSCrossbow" then slashAvail = slashAvail + 3 self.slashAvail = slashAvail end
+                table.insert(turnUse, dummy_use.card)
+            end
+        end
+    end
+
+    return turnUse
+end
+
+--判断AI在接下来的出牌阶段是否将会使用某牌（className）
+function willUse(self, className)
+	for _,card in ipairs(getTurnUse(self)) do
+		if card:isKindOf(className) then
+			return true
+		end
+	end
+	return false
+end
+
 --地图炮
 local map_skill={}
 map_skill.name="map"
@@ -410,6 +501,12 @@ sgs.ai_skill_use["@@huimie"] = function(self, prompt)
 	if card[2] == "dismantlement" then
 	    self:sort(self.enemies, "handcard")
 		local targets = {}
+		for _, friend in ipairs(self.friends_noself) do
+			if (friend:containsTrick("indulgence") or friend:containsTrick("supply_shortage")) and (not friend:isProhibited(friend, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0))) then
+				if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0)) then break end
+				table.insert(targets, friend:objectName())
+			end
+		end
 		for _, enemy in ipairs(self.enemies) do
 		    if (not enemy:isAllNude()) and (not enemy:isProhibited(enemy, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0))) then
 			    if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0)) then break end
@@ -425,6 +522,13 @@ sgs.ai_skill_use["@@huimie"] = function(self, prompt)
 	if card[2] == "snatch" then
 	    self:sort(self.enemies, "handcard")
 		local targets = {}
+		for _, friend in ipairs(self.friends_noself) do
+		    if (friend:containsTrick("indulgence") or friend:containsTrick("supply_shortage")) and (not friend:isProhibited(friend, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0))) and
+			self.player:distanceTo(friend) <= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_DistanceLimit, self.player, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0)) then
+			    if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0)) then break end
+				table.insert(targets,friend:objectName())
+			end
+		end
 		for _, enemy in ipairs(self.enemies) do
 		    if (not enemy:isAllNude()) and (not enemy:isProhibited(enemy, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0))) and
 			self.player:distanceTo(enemy) <= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_DistanceLimit, self.player, sgs.Sanguosha:cloneCard(card[2], sgs.Card_NoSuit, 0)) then
@@ -611,8 +715,15 @@ sgs.ai_skill_invoke.siyi = function(self, data)
     local use = data:toCardUse()
 	if use.card:isKindOf("AOE") then
 		return #self.friends_noself > 0
-    else
+    elseif use.card:isKindOf("GlobalEffect") then
 		return #self.enemies > 0
+	else
+		for _,p in sgs.qlist(self.room:getAlivePlayers()) do
+			if (use.to:contains(p) or self.room:isProhibited(self.player, p, use.card)) then continue end
+			if (use.card:targetFilter(sgs.PlayerList(), p, self.player) and self:isEnemy(p)) then
+				return true
+			end
+		end
 	end
 	return false
 end
@@ -836,6 +947,12 @@ sgs.ai_skill_use["@@ntdtwo"] = function(self, prompt)
     self:updatePlayers()
 	self:sort(self.enemies, "handcard")
 	local targets = {}
+	for _, friend in ipairs(self.friends_noself) do
+	    if (friend:containsTrick("indulgence") or friend:containsTrick("supply_shortage")) and (not friend:isProhibited(friend, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0))) then
+		    if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0)) then break end
+			table.insert(targets, friend:objectName())
+		end
+	end
 	for _, enemy in ipairs(self.enemies) do
 	    if (not enemy:isAllNude()) and (not enemy:isProhibited(enemy, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0))) then
 		    if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0)) then break end
@@ -1019,6 +1136,12 @@ sgs.ai_skill_use["@@ntdthree"] = function(self, prompt)
     self:updatePlayers()
 	self:sort(self.enemies, "handcard")
 	local targets = {}
+	for _, friend in ipairs(self.friends_noself) do
+	    if (friend:containsTrick("indulgence") or friend:containsTrick("supply_shortage")) and (not friend:isProhibited(friend, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0))) then
+		    if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0)) then break end
+			table.insert(targets, friend:objectName())
+		end
+	end
 	for _, enemy in ipairs(self.enemies) do
 	    if (not enemy:isAllNude()) and (not enemy:isProhibited(enemy, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0))) then
 		    if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:cloneCard("dismantlement", sgs.Card_NoSuit, 0)) then break end
@@ -2509,6 +2632,109 @@ sgs.ai_view_as.kelong = function(card, player, card_place)
 	end
 end
 
+--漆黑突击
+sgs.ai_skill_use["@@huantong"] = function(self, prompt)
+    self:updatePlayers()
+	local subcard = nil
+	local cards = self.player:getCards("he")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards, true)
+	for _,card in ipairs(cards) do
+		if card:isBlack() and not card:hasFlag("using") then
+			subcard = card
+		end
+	end
+	if subcard == nil then return "." end
+	local iron_chain = sgs.Sanguosha:cloneCard("iron_chain", subcard:getSuit(), subcard:getNumber())
+	iron_chain:addSubcard(subcard)
+	local targets = {}
+	self:sort(self.friends, "hp")
+	for _, friend in ipairs(self.friends) do
+		if friend:isChained() and (not friend:isProhibited(friend, iron_chain)) then
+			if #targets >= 2 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, iron_chain) then
+				return ("iron_chain:huantong[%s:%s]=%s->%s"):format(iron_chain:getSuitString(), iron_chain:getNumberString(), subcard:getEffectiveId(), table.concat(targets, "+"))
+			end
+			table.insert(targets, friend:objectName())
+		end
+	end
+	self:sort(self.enemies, "hp")
+	for _, enemy in ipairs(self.enemies) do
+		if (not enemy:isChained()) and (not enemy:isProhibited(enemy, iron_chain)) then
+			if #targets >= 2 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, iron_chain) then break end
+			table.insert(targets, enemy:objectName())
+		end
+	end
+	if #targets > 0 then
+		return ("iron_chain:huantong[%s:%s]=%s->%s"):format(iron_chain:getSuitString(), iron_chain:getNumberString(), subcard:getEffectiveId(), table.concat(targets, "+"))
+	elseif self.player:getHp() <= 2 and self:getCardsNum("Jink") == 0 then
+		return ("iron_chain:huantong[%s:%s]=%s->%s"):format(iron_chain:getSuitString(), iron_chain:getNumberString(), subcard:getEffectiveId(), self.enemies[1]:objectName())
+	end
+	return "."
+end
+
+sgs.huantong_suit_value = {
+	spade = 3.9,
+	club = 3.9
+}
+
+function sgs.ai_cardneed.huantong(to, card)
+	return card:isBlack()
+end
+
+local jianmie_skill = {}
+jianmie_skill.name = "jianmie"
+table.insert(sgs.ai_skills, jianmie_skill)
+jianmie_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:isNude() or not sgs.Slash_IsAvailable(self.player) then
+		return false
+	end
+	local cards = self.player:getCards("h")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards, true)
+	for _,card in ipairs(cards) do
+		local suit = card:getSuitString()
+		local number = card:getNumberString()
+		local card_id = card:getEffectiveId()
+		if card:objectName() == "slash" and not card:hasFlag("using") then
+			local slash_str = ("fire_slash:jianmie[%s:%s]=%d"):format(suit, number, card_id)
+			local jianmieslash = sgs.Card_Parse(slash_str)
+			local targets = {}
+			self:sort(self.enemies, "defenseSlash")
+			for _,enemy in ipairs(self.enemies) do
+				if self.player:canSlash(enemy, jianmieslash) and self:slashIsEffective(jianmieslash, enemy) then
+					if #targets == 1 then
+						if enemy:isChained() or findPlayerByObjectName(self.room, targets[1]):isChained() then
+							table.insert(targets, enemy:objectName())
+						end
+					else
+						if #targets >= 2 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, jianmieslash) then break end
+						table.insert(targets, enemy:objectName())
+					end
+				end
+			end
+			if #targets > 0 then
+				return sgs.Card_Parse("#jianmie:" .. card:getEffectiveId() .. ":->" .. table.concat(targets, "+"))
+			end
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#jianmie"] = function(card, use, self)
+	use.card = card
+	if use.to then
+		local targets = card:toString():split("->")[2]:split("+")
+		for _,name in pairs(targets) do
+			local target = findPlayerByObjectName(self.room, name)
+			if target then
+				use.to:append(target)
+			end
+		end
+	end
+end
+
+sgs.ai_use_value["jianmie"] = sgs.ai_use_value.FireSlash + 0.1
+sgs.ai_use_priority["jianmie"] = sgs.ai_use_priority.Slash + 0.1
+
 --艾斯亚R
 local duzhan_skill={}
 duzhan_skill.name="duzhan"
@@ -3184,93 +3410,37 @@ sgs.ai_skill_choice.tiexue = function(self, choices, data)
 	return "tiexuedraw"
 end
 
-sgs.ai_skill_invoke.zhuisha = true
-
-function getTurnUse(self)
-    local cards = {}
-    for _ ,c in sgs.qlist(self.player:getHandcards()) do
-        if c:isAvailable(self.player) then table.insert(cards, c) end
-    end
-    for _, id in sgs.qlist(self.player:getHandPile()) do
-        local c = sgs.Sanguosha:getCard(id)
-        if c:isAvailable(self.player) then table.insert(cards, c) end
-    end
-    if self.player:hasSkill("taoxi") and self.player:hasFlag("TaoxiRecord") then
-        local taoxi_id = self.player:getTag("TaoxiId"):toInt()
-        if taoxi_id and taoxi_id >= 0 then
-            local taoxi_card = sgs.Sanguosha:getCard(taoxi_id)
-            table.insert(cards, taoxi_card)
-        end
-    end
-
-	if self.player:hasSkill("ronghe") then
-		local list = self.player:property("ronghe"):toString():split("+")
-		if #list > 0 then
-			for _,l in ipairs(list) do
-				local id = tonumber(l)
-				if id and id >= 0 then
-					local ronghe_card = sgs.Sanguosha:getCard(id)
-					table.insert(cards, ronghe_card)
-				end
-			end
-		end
-    end
-	
-    local turnUse = {}
-    local slash = sgs.Sanguosha:cloneCard("slash")
-    local slashAvail = 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, self.player, slash)
-    self.slashAvail = slashAvail
-    self.predictedRange = self.player:getAttackRange()
-    self.slash_distance_limit = (1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_DistanceLimit, self.player, slash) > 50)
-
-    self.weaponUsed = false
-	--self:fillSkillCards(cards) 万恶的无限循环！！！！！
-    self:sortByUseValue(cards)
-
-    if self.player:hasWeapon("crossbow") or #self.player:property("extra_slash_specific_assignee"):toString():split("+") > 1 then
-        slashAvail = 100
-        self.slashAvail = slashAvail
-    elseif self.player:hasWeapon("vscrossbow") then
-        slashAvail = slashAvail + 3
-        self.slashAvail = slashAvail
-    end
-
-    for _, card in ipairs(cards) do
-        local dummy_use = { isDummy = true }
-
-        local type = card:getTypeId()
-        self["use" .. sgs.ai_type_name[type + 1] .. "Card"](self, card, dummy_use)
-
-        if dummy_use.card then
-            if dummy_use.card:isKindOf("Slash") then
-                if slashAvail > 0 then
-                    slashAvail = slashAvail - 1
-                    table.insert(turnUse, dummy_use.card)
-                elseif dummy_use.card:hasFlag("AIGlobal_KillOff") then table.insert(turnUse, dummy_use.card) end
-            else
-                if self.player:hasFlag("InfinityAttackRange") or self.player:getMark("InfinityAttackRange") > 0 then
-                    self.predictedRange = 10000
-                elseif dummy_use.card:isKindOf("Weapon") then
-                    self.predictedRange = sgs.weapon_range[card:getClassName()]
-                    self.weaponUsed = true
-                else
-                    self.predictedRange = 1
-                end
-                if dummy_use.card:objectName() == "Crossbow" then slashAvail = 100 self.slashAvail = slashAvail end
-                if dummy_use.card:objectName() == "VSCrossbow" then slashAvail = slashAvail + 3 self.slashAvail = slashAvail end
-                table.insert(turnUse, dummy_use.card)
-            end
-        end
-    end
-
-    return turnUse
+--巴巴托斯 天狼
+sgs.ai_skill_invoke.tianlang = function(self, data)
+	return sgs.ai_skill_invoke.kunfen(self, data)
 end
 
-function willUse(self, className)
-	for _,card in ipairs(getTurnUse(self)) do
-		if card:isKindOf(className) then
+sgs.tianlang_suit_value = {
+	spade = 3.9,
+	club = 3.9
+}
+
+--巴巴托斯 帝王
+sgs.ai_skill_invoke.diwang = function(self, data)
+	local x = data:toString()
+	if x and x:startsWith("draw") then
+		x = tonumber(x:split(":")[2])
+		if x < 2 then
+			return willUse(self, "Slash") and not self:isWeak(self.player)
+		else
+			return true
+		end
+	else
+		local damage = data:toDamage()
+		if self:isEnemy(damage.to) then
+			if damage.to:isChained() and #self.enemies > 1 then
+				for _, friend in pairs(self.friends) do
+					if friend:isChained() then
+						return false
+					end
+				end
+			end
 			return true
 		end
 	end
-	return false
 end

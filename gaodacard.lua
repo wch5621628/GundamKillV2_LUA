@@ -84,7 +84,7 @@ laplace_box_skill = sgs.CreateTriggerSkill{
 
 laplace_box_card = sgs.CreateTriggerSkill{
 	name = "laplace_box_card",
-	events = {sgs.CardUsed, sgs.TargetSpecifying, sgs.CardEffected, sgs.CardFinished},
+	events = {sgs.TargetSpecifying, sgs.CardEffected, sgs.CardFinished},
 	global = true,
 	priority = 3,
 	can_trigger = function(self, target)
@@ -92,23 +92,10 @@ laplace_box_card = sgs.CreateTriggerSkill{
 	end,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-		if event == sgs.CardUsed then
+		if event == sgs.TargetSpecifying then
 			local use = data:toCardUse()
 			if use.card and use.card:getSkillName() == "laplace_box" and use.card:isKindOf("AmazingGrace") and use.from:objectName() == player:objectName() then
-				local card_ids = sgs.IntList()
-				local pile = room:getDrawPile()
-				local n = room:getAllPlayers():length()
-				for i = 0, n - 1, 1 do
-					card_ids:append(pile:at(i))
-				end
-				local _data = sgs.QVariant()
-				_data:setValue(card_ids)
-				room:setTag("LaplaceBox", _data)
-			end
-		elseif event == sgs.TargetSpecifying then
-			local use = data:toCardUse()
-			if use.card and use.card:getSkillName() == "laplace_box" and use.card:isKindOf("AmazingGrace") and use.from:objectName() == player:objectName() then
-				local card_ids = room:getTag("LaplaceBox"):toIntList()
+				local card_ids = room:getTag("AmazingGrace"):toIntList()
 				card_ids:append(room:getNCards(1):first())
 				local _data = sgs.QVariant()
 				_data:setValue(card_ids)
@@ -129,7 +116,6 @@ laplace_box_card = sgs.CreateTriggerSkill{
 					end
 					for i = 1, n, 1 do
 						local card_id = room:askForAG(player, card_ids, false, "amazing_grace")
-						room:moveCardTo(sgs.Sanguosha:getCard(card_id), nil, sgs.Player_PlaceTable)
 						room:takeAG(player, card_id)
 						card_ids:removeOne(card_id)
 						local _data = sgs.QVariant()
