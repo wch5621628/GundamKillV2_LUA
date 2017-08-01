@@ -637,7 +637,16 @@ saveRecord = function(player, record_table, record_type) --record_type: 0. +1 ga
 			name = string.sub(name, 1, skin_id - 1)
 		end
 		
-		if text == "GameTimes" or name == text then
+		local name2 = ""
+		if player:getGeneral2() then
+			name2 = player:getGeneral2Name()
+			local skin_id2 =  string.find(name2, "_skin")
+			if skin_id2 then
+				name2 = string.sub(name2, 1, skin_id2 - 1)
+			end
+		end
+		
+		if text == "GameTimes" or name == text or (name2 ~= "" and name2 == text and name ~= name2) then
 			if record_type ~= 0 then -- record_type 1 or 2
 				m = m + 1
 			end
@@ -1189,6 +1198,21 @@ skincard = sgs.CreateSkillCard{
 			--room:changeHero(source, general_name, false, false, false, false)
 			room:setPlayerProperty(source, "general", sgs.QVariant(general_name))
 		end
+		
+		if source:getGeneral2() then
+			local name2 = source:getGeneral2Name()
+			local convert2 = {}
+			for _,cp2 in ipairs(g_skin_cp) do
+				if table.contains(cp2, name2) then
+					convert2 = cp2
+					break
+				end
+			end
+			local general_name2 = room:askForGeneral(source, table.concat(convert2, "+"))
+			if general_name2 and table.contains(convert2, general_name2) then
+				room:setPlayerProperty(source, "general2", sgs.QVariant(general_name2))
+			end
+		end
 	end
 }
 
@@ -1214,7 +1238,7 @@ skinrecord = sgs.CreateTriggerSkill{
 		local room = player:getRoom()
 		if event == sgs.AfterDrawInitialCards then
 			for _,cp in ipairs(g_skin_cp) do
-				if cp[1] == player:getGeneralName() then
+				if cp[1] == player:getGeneralName() or cp[1] == player:getGeneral2Name() then
 					room:attachSkillToPlayer(player, "skin")
 					break
 				end
@@ -1226,6 +1250,15 @@ skinrecord = sgs.CreateTriggerSkill{
 				name = string.sub(name, 1, skin_id - 1)
 				--room:changeHero(player, name, false, false, false, false)
 				room:setPlayerProperty(player, "general", sgs.QVariant(name))
+			end
+			
+			if player:getGeneral2() then
+				local name2 = player:getGeneral2Name()
+				local skin_id2 =  string.find(name2, "_skin")
+				if skin_id2 then
+					name2 = string.sub(name2, 1, skin_id2 - 1)
+					room:setPlayerProperty(player, "general2", sgs.QVariant(name2))
+				end
 			end
 		end
 	end
