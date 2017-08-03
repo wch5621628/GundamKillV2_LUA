@@ -1166,16 +1166,20 @@ if show_winrate then
 end
 
 --【皮肤系统】（续页底）
-if g_skin then
+if g_skin then --BUG:hide some skins for KrAu!
 	g_skin_cp = {
-		{"FREEDOM", "FREEDOM_skin1"},
-		{"JUSTICE", "JUSTICE_skin1"},
+		{"FREEDOM", "FREEDOM_skin1", "FREEDOM_skin2"},
+		{"JUSTICE", "JUSTICE_skin1", "JUSTICE_skin2"},
 		{"PROVIDENCE", "PROVIDENCE_skin1", "PROVIDENCE_skin2"},
 		{"SAVIOUR", "SAVIOUR_skin1"},
+		{"SF", "SF_skin1", "SF_skin2"},
 		{"BARBATOS", "BARBATOS_skin1"},
 		{"LUPUS", "LUPUS_skin1"},
 		{"REX", "REX_skin1"}
 	}
+	--[[if false then
+		table.insert(g_skin_cp[5], "SF_skin2")
+	end]]
 end
 	
 skincard = sgs.CreateSkillCard{
@@ -11567,10 +11571,14 @@ end
 --【皮肤系统】（置于页底以确保武将名翻译成功）
 if g_skin then
 	FREEDOM_skin1 = sgs.General(extension, "FREEDOM_skin1", "ORB", 3, true, true, true)
+	FREEDOM_skin2 = sgs.General(extension, "FREEDOM_skin2", "ORB", 3, true, true, true)
 	JUSTICE_skin1 = sgs.General(extension, "JUSTICE_skin1", "ORB", 4, true, true, true)
+	JUSTICE_skin2 = sgs.General(extension, "JUSTICE_skin2", "ORB", 4, true, true, true)
 	PROVIDENCE_skin1 = sgs.General(extension, "PROVIDENCE_skin1", "ZAFT", 4, true, true, true)
 	PROVIDENCE_skin2 = sgs.General(extension, "PROVIDENCE_skin2", "ZAFT", 4, true, true, true)
 	SAVIOUR_skin1 = sgs.General(extension, "SAVIOUR_skin1", "ZAFT", 4, true, true, true)
+	SF_skin1 = sgs.General(extension, "SF_skin1", "ORB", 4, true, true, true)
+	SF_skin2 = sgs.General(extension, "SF_skin2", "ORB", 4, true, true, true)
 	BARBATOS_skin1 = sgs.General(extension, "BARBATOS_skin1", "TEKKADAN", 4, true, true, true)
 	LUPUS_skin1 = sgs.General(extension, "LUPUS_skin1", "TEKKADAN", 4, true, true, true)
 	REX_skin1 = sgs.General(extension, "REX_skin1", "TEKKADAN", 4, true, true, true)
