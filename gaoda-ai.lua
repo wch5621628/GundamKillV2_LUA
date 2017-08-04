@@ -3339,7 +3339,10 @@ sgs.ai_use_priority["fs_transam"] = sgs.ai_use_priority.Slash + 0.05
 
 --星创突击
 sgs.ai_skill_invoke.jieneng = function(self, data)
-	return not (self.player:getMark("@shineng") == 0 and self:getCardsNum("Jink") > 0)
+	local use = data:toCardUse()
+	local jink_table = sgs.QList2Table(use.from:getTag("Jink_" .. use.card:toString()):toIntList())
+	local index = use.to:indexOf(self.player) + 1
+	return self.player:getMark("@shineng") > 0 or self:getCardsNum("Jink") == 0 or jink_table[index] == 0 or jink_table[index] > self:getCardsNum("Jink")
 end
 
 local shineng_skill = {}
