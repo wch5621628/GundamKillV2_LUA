@@ -16,7 +16,7 @@
 module("extensions.zabing", package.seeall)
 extension = sgs.Package("zabing")
 
-ZAKU = sgs.General(extension, "ZAKU", "", 0, true, true) --BUG:耐久度, phase bar 4
+ZAKU = sgs.General(extension, "ZAKU", "", 5, true, true) --BUG:耐久度, phase bar 4
 ZAKU:setGender(sgs.General_Neuter)
 
 dangqiang = sgs.CreateTriggerSkill
@@ -35,7 +35,7 @@ dangqiang = sgs.CreateTriggerSkill
 
 ZAKU:addSkill(dangqiang)
 
-GM = sgs.General(extension, "GM", "", 0, true, true)
+GM = sgs.General(extension, "GM", "", 3, true, true)
 GM:setGender(sgs.General_Neuter)
 
 liangchan = sgs.CreateTargetModSkill{
@@ -50,7 +50,7 @@ liangchan = sgs.CreateTargetModSkill{
 
 GM:addSkill(liangchan)
 
-JEGAN = sgs.General(extension, "JEGAN", "", 0, true, true)
+JEGAN = sgs.General(extension, "JEGAN", "", 3, true, true)
 JEGAN:setGender(sgs.General_Neuter)
 
 lianxievs = sgs.CreateOneCardViewAsSkill{
@@ -84,7 +84,7 @@ lianxie = sgs.CreateTriggerSkill
 
 JEGAN:addSkill(lianxie)
 
-BUCUE = sgs.General(extension, "BUCUE", "", 0, true, true)
+BUCUE = sgs.General(extension, "BUCUE", "", 4, true, true)
 BUCUE:setGender(sgs.General_Neuter)
 
 dizhan = sgs.CreateTriggerSkill{
@@ -105,7 +105,7 @@ dizhan = sgs.CreateTriggerSkill{
 
 BUCUE:addSkill(dizhan)
 
-M1_ASTRAY = sgs.General(extension, "M1_ASTRAY", "", 0, true, true)
+M1_ASTRAY = sgs.General(extension, "M1_ASTRAY", "", 4, true, true)
 M1_ASTRAY:setGender(sgs.General_Neuter)
 
 zhongli = sgs.CreateTriggerSkill{
@@ -121,7 +121,7 @@ zhongli = sgs.CreateTriggerSkill{
 
 M1_ASTRAY:addSkill(zhongli)
 
-FLAG = sgs.General(extension, "FLAG", "", 0, true, true)
+FLAG = sgs.General(extension, "FLAG", "", 3, true, true)
 FLAG:setGender(sgs.General_Neuter)
 
 kongxi = sgs.CreateTriggerSkill{
@@ -149,7 +149,7 @@ kongxi = sgs.CreateTriggerSkill{
 
 FLAG:addSkill(kongxi)
 
-TIEREN = sgs.General(extension, "TIEREN", "", 0, true, true)
+TIEREN = sgs.General(extension, "TIEREN", "", 4, true, true)
 TIEREN:setGender(sgs.General_Neuter)
 
 diyu = sgs.CreateTriggerSkill{
@@ -165,7 +165,7 @@ diyu = sgs.CreateTriggerSkill{
 
 TIEREN:addSkill(diyu)
 
-GENOACE = sgs.General(extension, "GENOACE", "", 0, true, true)
+GENOACE = sgs.General(extension, "GENOACE", "", 4, true, true)
 GENOACE:setGender(sgs.General_Neuter)
 
 huanji = sgs.CreateTriggerSkill{
@@ -190,7 +190,7 @@ huanji = sgs.CreateTriggerSkill{
 
 GENOACE:addSkill(huanji)
 
-GAFRAN = sgs.General(extension, "GAFRAN", "", 0, true, true)
+GAFRAN = sgs.General(extension, "GAFRAN", "", 5, true, true)
 GAFRAN:setGender(sgs.General_Neuter)
 
 fuxicard = sgs.CreateSkillCard
