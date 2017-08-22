@@ -5,10 +5,18 @@
    PS：准备好氪金验欧非吧
 ]]
 
+--[[设定
+	支援机体力 = 耐久度
+	出牌阶段，点击“支援”按钮，召唤你喜欢的支援机，以副将的形式出击。
+	出牌阶段开始时、当你造成或受到1点伤害后，支援机耐久度-1，若为0则消失，X回合后才可再次召唤支援机出击。（X为其原耐久度）
+	各类支援机的使用权从“扭蛋”获得，每次抽到便令该支援机的可使用次数+3。
+	一场游戏中，第一次召唤支援机需消耗1次该支援机的使用次数，之后再召唤支援机时不消耗次数，但只能召唤第一次的支援机。
+]]
+
 module("extensions.zabing", package.seeall)
 extension = sgs.Package("zabing")
 
-ZAKU = sgs.General(extension, "ZAKU", "", 0, true, true)
+ZAKU = sgs.General(extension, "ZAKU", "", 0, true, true) --BUG:耐久度, phase bar 4
 ZAKU:setGender(sgs.General_Neuter)
 
 dangqiang = sgs.CreateTriggerSkill
@@ -79,49 +87,176 @@ JEGAN:addSkill(lianxie)
 BUCUE = sgs.General(extension, "BUCUE", "", 0, true, true)
 BUCUE:setGender(sgs.General_Neuter)
 
-M1ASTRAY = sgs.General(extension, "M1ASTRAY", "", 0, true, true)
-M1ASTRAY:setGender(sgs.General_Neuter)
+dizhan = sgs.CreateTriggerSkill{
+	name = "dizhan",
+	events = {sgs.EventPhaseEnd},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getPhase() == sgs.Player_Play and player:isKongcheng() and room:askForSkillInvoke(player, self:objectName(), data) then
+			local card = sgs.Sanguosha:cloneCard("savage_assault")
+			card:setSkillName(self:objectName())
+			local use = sgs.CardUseStruct()
+			use.card = card
+			use.from = player
+			room:useCard(use)
+		end
+	end
+}
+
+BUCUE:addSkill(dizhan)
+
+M1_ASTRAY = sgs.General(extension, "M1_ASTRAY", "", 0, true, true)
+M1_ASTRAY:setGender(sgs.General_Neuter)
+
+zhongli = sgs.CreateTriggerSkill{
+	name = "zhongli",
+	events = {sgs.EventPhaseStart},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getPhase() == sgs.Player_Finish and player:getMark("damage_point_round") == 0 and room:askForSkillInvoke(player, self:objectName(), data) then
+			player:drawCards(1, self:objectName())
+		end
+	end
+}
+
+M1_ASTRAY:addSkill(zhongli)
 
 FLAG = sgs.General(extension, "FLAG", "", 0, true, true)
 FLAG:setGender(sgs.General_Neuter)
 
+kongxi = sgs.CreateTriggerSkill{
+	name = "kongxi",
+	events = {sgs.TargetSpecified},
+	frequency = sgs.Skill_Compulsory,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card and use.card:isKindOf("Slash") and use.card:isBlack() then
+			room:sendCompulsoryTriggerLog(player, self:objectName())
+			local log = sgs.LogMessage()
+			log.type = "#IgnoreArmor"
+			log.from = player
+			log.card_str = use.card:toString()
+			room:sendLog(log)
+			for _,p in sgs.qlist(use.to) do
+				if p:getMark("Equips_of_Others_Nullified_to_You") == 0 then
+					p:addQinggangTag(use.card)
+				end
+			end
+		end
+	end
+}
+
+FLAG:addSkill(kongxi)
+
 TIEREN = sgs.General(extension, "TIEREN", "", 0, true, true)
 TIEREN:setGender(sgs.General_Neuter)
+
+diyu = sgs.CreateTriggerSkill{
+	name = "diyu",
+	frequency = sgs.Skill_Compulsory,
+	events = {sgs.HpLost, sgs.Damaged},
+	on_trigger = function(self, event, player, data)
+	    local room = player:getRoom()
+		room:sendCompulsoryTriggerLog(player, self:objectName())
+		player:drawCards(1, self:objectName())
+	end
+}
+
+TIEREN:addSkill(diyu)
 
 GENOACE = sgs.General(extension, "GENOACE", "", 0, true, true)
 GENOACE:setGender(sgs.General_Neuter)
 
+huanji = sgs.CreateTriggerSkill{
+	name = "huanji",
+	events = {sgs.Damaged},
+	on_trigger = function(self, event, player, data)
+	    local room = player:getRoom()
+	    local damage = data:toDamage()
+		if damage.from and damage.from:objectName() ~= player:objectName() then
+			local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+			slash:setSkillName(self:objectName())
+			if not damage.from:isProhibited(damage.from, slash) and room:askForCard(player, ".|red", "@@huanji", data,  sgs.Card_MethodDiscard, nil, false, self:objectName(), false) then
+				local use = sgs.CardUseStruct()
+				use.card = slash
+				use.from = player
+				use.to:append(damage.from)
+				room:useCard(use)
+			end
+		end
+	end
+}
+
+GENOACE:addSkill(huanji)
+
 GAFRAN = sgs.General(extension, "GAFRAN", "", 0, true, true)
 GAFRAN:setGender(sgs.General_Neuter)
 
-sgs.LoadTranslationTable{
-	["zabing"] = "支援机",
-	["ZAKU"] = "渣古ⅡF",
-	["#ZAKU"] = "自护的先锋",
-	["dangqiang"] = "挡枪",
-	[":dangqiang"] = "当你受到伤害时，你可以防止之并移除此武将牌。",
-	["GM"] = "吉姆",
-	["#GM"] = "联邦的先锋",
-	["liangchan"] = "量产",
-	[":liangchan"] = "你使用【杀】时可额外指定一个目标。",
-	["JEGAN"] = "积根",
-	["#JEGAN"] = "联邦之杰",
-	["lianxie"] = "连携",
-	[":lianxie"] = "出牌阶段限一次，你可以将一张锦囊牌当【战术连携】使用。",
-	["BUCUE"] = "巴库",
-	["#BUCUE"] = "沙漠猛犬",
-	["M1ASTRAY"] = "M1迷惘",
-	["#M1ASTRAY"] = "奥布主力",
-	["FLAG"] = "旗帜式",
-	["#FLAG"] = "翱翔的战士",
-	["kongxi"] = "空袭",
-	[":kongxi"] = "<b><font color='blue'>锁定技，</font></b>你的黑色【杀】无视目标角色的防具。",
-	["TIEREN"] = "铁人",
-	["#TIEREN"] = "疆土的守卫者",
-	["GENOACE"] = "杰诺亚斯",
-	["#GENOACE"] = "UE的对立者",
-	["GAFRAN"] = "格夫兰",
-	["#GAFRAN"] = "未知的敌人",
-	--["LuaDiyu"] = "抵御",
-	--[":LuaDiyu"] = "你的体力值减少后，你可以摸一张牌。 ",
+fuxicard = sgs.CreateSkillCard
+{
+	name = "fuxi",
+	target_fixed = false,
+	will_throw = true,
+	filter = function(self, targets, to_select, player)
+		return #targets < 1 and to_select:objectName() ~= player:objectName()
+	end,
+	about_to_use = function(self, room, use)
+		room:throwCard(self, use.from)
+		local log = sgs.LogMessage()
+		log.type = "#fuxi"
+		log.from = use.from
+		log.arg = self:objectName()
+		room:sendLog(log)
+		room:changeHero(use.from, "", false, false, true, false)
+		room:addPlayerMark(use.to:first(), "fuxi")
+	end
 }
+
+fuxi = sgs.CreateViewAsSkill
+{
+	name = "fuxi",
+	n = 2,
+	view_filter = function(self, selected, to_select)
+		return not to_select:isEquipped()
+	end,
+	view_as = function(self, cards)
+		if #cards == 2 then
+			local acard = fuxicard:clone()
+			acard:addSubcard(cards[1])
+			acard:addSubcard(cards[2])
+			acard:setSkillName(self:objectName())
+			return acard
+		end
+	end,
+	enabled_at_play = function(self, player)
+		return true
+	end
+}
+
+fuxieffect = sgs.CreateTriggerSkill
+{
+	name = "#fuxieffect",
+	events = {sgs.TurnStart},
+	global = true,
+	can_trigger = function(self, player)
+		return true
+	end,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getMark("fuxi") > 0 then
+			room:removePlayerMark(player, "fuxi")
+			local log = sgs.LogMessage()
+			log.type = "#fuxie"
+			log.from = player
+			log.arg = "fuxi"
+			room:sendLog(log)
+		    room:loseHp(player, 1)
+		end
+	end
+}
+
+GAFRAN:addSkill(fuxi)
+GAFRAN:addSkill(fuxieffect)
+
+--请在gaoda.lua的“杂兵”处进行翻译
