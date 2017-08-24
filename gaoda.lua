@@ -653,6 +653,9 @@ saveRecord = function(player, record_table, record_type) --record_type: 0. +1 ga
 			end
 		end
 		
+		if name == "REBORNS_GUNDAM" then name = "REBORNS_CANNON" end
+		if name2 == "REBORNS_GUNDAM" then name2 = "REBORNS_CANNON" end
+		
 		if text == "GameTimes" or name == text or (name2 ~= "" and name2 == text and name ~= name2) then
 			if record_type ~= 0 then -- record_type 1 or 2
 				m = m + 1
@@ -1185,9 +1188,6 @@ if g_skin then --BUG:hide some skins for KrAu!
 		{"LUPUS", "LUPUS_skin1"},
 		{"REX", "REX_skin1"}
 	}
-	--[[if false then
-		table.insert(g_skin_cp[5], "SF_skin2")
-	end]]
 end
 	
 skincard = sgs.CreateSkillCard{
@@ -1207,7 +1207,6 @@ skincard = sgs.CreateSkillCard{
 		end
 		local general_name = room:askForGeneral(source, table.concat(convert, "+"))
 		if general_name and table.contains(convert, general_name) then
-			--room:changeHero(source, general_name, false, false, false, false)
 			room:setPlayerProperty(source, "general", sgs.QVariant(general_name))
 		end
 		
@@ -1292,19 +1291,77 @@ if lucky_card then
 			room:setEmotion(use.from, "capsule")
 			room:broadcastSkillInvoke("gdsbgm", 7)
 			room:getThread():delay(1000)
-			room:broadcastSkillInvoke("gdsbgm", 9)
-			room:getThread():delay(2700)
-			room:broadcastSkillInvoke("gdsbgm", 12) --BUG:sp gundam sp voice
 			
-			local zb = zb_list --BUG:gundam, zabing & skins
-			local item = zb[math.random(#zb)]
-			room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500) --BUG:repeated item
-			local log = sgs.LogMessage()
-			log.type = "#capsule"
-			log.arg = item
-			log.arg2 = 3
-			room:sendLog(log)
-			saveItem(item, 3)
+			--皮肤 15% 杂兵使用权*1 45% 杂兵使用权*3  25% 武将 15%
+			local ran = math.random(1, 100)
+			
+			if ran <= 15 then
+				local sk = {}
+				for _,s in ipairs(g_skin_cp) do
+					for _,t in ipairs(s) do
+						if string.find(t, "_skin") then
+							table.insert(sk, t)
+						end
+					end
+				end
+								
+				local item = sk[math.random(#sk)]
+				
+				room:broadcastSkillInvoke("gdsbgm", 10)
+				room:getThread():delay(2700)
+				room:broadcastSkillInvoke("gdsbgm", 11)
+				room:broadcastSkillInvoke("gdsbgm", 12)
+				
+				room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500) --BUG:repeated item, read save before use skin, itemshow translate
+				local n = tonumber(string.sub(item, string.len(item)))
+				local log = sgs.LogMessage()
+				log.type = "#capsule_sk"
+				log.arg = item
+				log.arg2 = string.rep("I", n)
+				room:sendLog(log)
+				local repeated = saveItem(item, 1)
+				if repeated then
+					room:setEmotion(use.from, "yomeng")
+					room:broadcastSkillInvoke("gdsbgm", 7)
+					local log = sgs.LogMessage()
+					log.type = "#capsule_re"
+					log.arg = 1
+					room:sendLog(log)
+					room:addPlayerMark(use.from, "@coin", 1)
+					saveItem("Coin", 1)
+				end
+			elseif ran <= 85 then
+				local zb = zb_list
+				
+				local item = zb[math.random(#zb)]
+				
+				room:broadcastSkillInvoke("gdsbgm", 9)
+				room:getThread():delay(2700)
+				room:broadcastSkillInvoke("gdsbgm", 12)
+				
+				room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500)
+				local n = 1
+				if ran >= 61 then
+					n = 3
+				end
+				local log = sgs.LogMessage()
+				log.type = "#capsule_zb"
+				log.arg = item
+				log.arg2 = n
+				room:sendLog(log)
+				saveItem(item, n)
+			else
+				room:broadcastSkillInvoke("gdsbgm", 9)
+				room:getThread():delay(2700)
+				room:setEmotion(use.from, "yomeng")
+				room:broadcastSkillInvoke("gdsbgm", 8)
+				local log = sgs.LogMessage()
+				log.type = "#capsule_c"
+				log.arg = 2
+				room:sendLog(log)
+				room:addPlayerMark(use.from, "@coin", 2)
+				saveItem("Coin", 2)
+			end
 		end
 	}
 
@@ -1369,12 +1426,13 @@ saveItem = function(item_type, add_num)
 		file:close()
 	end
 	
-	local exist = false
+	local exist, repeated = false, false
 	local record = assert(io.open(g2data, "w"))
     for d,item in pairs(tt) do
 		local s = item:split("=")
 		local n = tonumber(s[2])
 		if s[1] == item_type then
+			if n > 0 then repeated = true end
 			n = n + add_num
 			exist = true
 		end
@@ -1385,10 +1443,11 @@ saveItem = function(item_type, add_num)
     end
 	
 	if not exist then
-		record:write(item_type .. "=0")
+		record:write(item_type .. "=" .. add_num)
 	end
 	
     record:close()
+	return repeated
 end
 
 luckyrecordcard = sgs.CreateSkillCard{
@@ -1547,7 +1606,7 @@ zyrecord = sgs.CreateTriggerSkill{
 }
 
 --【支援机系统】
-zb_list = {"ZAKU", "GM", "JEGAN", "BUCUE", "M1_ASTRAY", "FLAG", "TIEREN", "GENOACE", "GAFRAN"}
+zb_list = {"ZAKU", "GM", "JEGAN", "BUCUE", "M1_ASTRAY", "FLAG", "TIEREN", "GENOACE", "GAFRAN"} --开放使用的支援机
 
 zabingcard = sgs.CreateSkillCard{
 	name = "zabing",
@@ -1563,7 +1622,9 @@ zabingcard = sgs.CreateSkillCard{
 		if zb ~= "" then
 			local general_name = room:askForGeneral(source, source:getGeneralName() .. "+" .. zb)
 			if general_name and string.find(zb, general_name) then
-				--BUG:change to mark count for hp
+				room:setPlayerFlag(source, "zabing_used")
+				local hp = sgs.Sanguosha:getGeneral(general_name):getMaxHp()
+				room:setPlayerMark(source, "@zb_full" .. hp .. "_use" .. hp, 1)
 				if source:property("zabing"):toString() == "" then
 					room:setPlayerProperty(source, "zabing", sgs.QVariant(general_name))
 				end
@@ -1572,7 +1633,9 @@ zabingcard = sgs.CreateSkillCard{
 				log.from = source
 				log.arg = general_name
 				room:sendLog(log)
+				local maxhp = source:getMaxHp()
 				room:changeHero(source, general_name, false, false, true, false)
+				room:setPlayerProperty(source, "maxhp", sgs.QVariant(maxhp))
 			end
 		end
 	end
@@ -1616,7 +1679,10 @@ zabing = sgs.CreateZeroCardViewAsSkill{
 		
 		local can_invoke = (zb ~= "")
 		
-		if not can_invoke then
+		if can_invoke then
+			local hp = sgs.Sanguosha:getGeneral(zb):getMaxHp()
+			can_invoke = (player:getMark("@zb_full" .. hp .. "_use" .. hp) == 1 and not player:hasFlag("zabing_used"))
+		else
 			local file = io.open(g2data, "r")
 			local tt = {}
 			if file ~= nil then
@@ -1636,16 +1702,65 @@ zabing = sgs.CreateZeroCardViewAsSkill{
 	end
 }
 
+function zbHpProcess(player)
+	local room = player:getRoom()
+	local marks = player:getMarkNames()
+	for _,mark in pairs(marks) do
+		if mark:startsWith("@zb_") and player:getMark(mark) > 0 then --Once the mark is added, it is always in the records(marks) even though its quantity changes to 0. Records(marks) are sorted in ascending alphabetical order.
+			room:setPlayerMark(player, mark, 0)
+			
+			local s = mark:split("_")
+			local max = tonumber(string.sub(s[2], string.len(s[2])))
+			local cur = tonumber(string.sub(s[3], string.len(s[3])))
+			
+			if cur == max and player:getGeneral2() == nil then return false end
+			
+			if s[3]:startsWith("use") then
+				if cur == 1 then
+					room:setPlayerMark(player, "@zb_" .. s[2] .. "_re0", 1)
+					
+					room:changeHero(player, "", false, false, true, false)
+				else
+					room:setPlayerMark(player, "@zb_" .. s[2] .. "_use" .. (cur - 1), 1)
+				end
+			else
+				if cur == (max - 1) then
+					room:setPlayerMark(player, "@zb_" .. s[2] .. "_use" .. max, 1)
+				else
+					room:setPlayerMark(player, "@zb_" .. s[2] .. "_re" .. (cur + 1), 1)
+				end
+			end
+			
+			break
+		end
+	end
+end
+
 zabingrecord = sgs.CreateTriggerSkill{
 	name = "zabingrecord",
-	events = {sgs.AfterDrawInitialCards},
+	events = {sgs.EventPhaseStart, sgs.Damage, sgs.Damaged},
 	global = true,
+	priority = 1,
 	can_trigger = function(self, player)
 	    return zabing_system == true and player:getGameMode() ~= "_mini_1"
 	end,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-		room:attachSkillToPlayer(player, "zabing")
+		if event == sgs.EventPhaseStart then
+			if player:getPhase() == sgs.Player_Play then
+				if player:getGeneral2() == nil and player:getMark("Global_TurnCount") == 2 then
+					room:attachSkillToPlayer(player, "zabing")
+				end
+				zbHpProcess(player)
+			end
+		else
+			local damage = data:toDamage()
+			for i = 1, damage.damage, 1 do
+				if player:getGeneral2() and player:property("zabing"):toString() ~= "" then
+					zbHpProcess(player)
+				end
+			end
+		end
 	end
 }
 
@@ -10161,7 +10276,6 @@ LUPUS:addSkill(zaie)
 LUPUS:addSkill(zaieh)
 LUPUS:addSkill(tianlang)
 
-
 REX = sgs.General(extension, "REX", "TEKKADAN", 4, true, false)
 
 diwang = sgs.CreateTriggerSkill{
@@ -10344,7 +10458,10 @@ sgs.LoadTranslationTable{
 	♥视为♠",
 	["#sun"] = "<img src=\"image/animate/sun.png\" width = \"40.75\" height = \"30.6\"><b>昼</b>：判定牌<img src=\"image/system/log/club.png\">视为<img src=\"image/system/log/diamond.png\">",
 	["#moon"] = "<img src=\"image/animate/moon.png\" width = \"40.75\" height = \"30.6\"><b>夜</b>：判定牌<img src=\"image/system/log/heart.png\">视为<img src=\"image/system/log/spade.png\">",
-	["#capsule"] = "恭喜你获得 %arg 使用权 × %arg2",
+	["#capsule_sk"] = "恭喜你获得 %arg 皮肤 %arg2",
+	["#capsule_zb"] = "恭喜你获得 %arg 使用权 × %arg2",
+	["#capsule_c"] = "恭喜你获得<img src=\"image/mark/@coin.png\">× %arg 的回赠",
+	["#capsule_re"] = "因获得重复皮肤，你获得<img src=\"image/mark/@coin.png\">× %arg 的回赠",
 	["#BGM"] = "%arg",
 	["BGM0"] = "♪ ☆Divine Act -The EXTREME-MAXI BOOST-",
 	["BGM1"] = "♪ FINAL MISSION~QUANTUM BURST",
@@ -11607,7 +11724,7 @@ sgs.LoadTranslationTable{
 	["cv:REX"] = "三日月·奥格斯",
 	["illustrator:REX"] = "wch5621628",
 	["diwang"] = "帝王",
-	[":diwang"] = "摸牌阶段，你可以令摸牌数为体力小于你的角色数，若此数不大于2，你于本回合使用的【杀】不可被【闪】响应且额外使用次数+X；当你使用【杀】或【决斗】对手牌数小于你的目标角色造成伤害时，你可以令伤害+1且具雷电伤害。（X为你已损失的体力值）",
+	[":diwang"] = "摸牌阶段，你可以令摸牌数为体力小于你的角色数，若此数不大于2，你于本回合使用的【杀】不可被【闪】响应且额外使用次数+X；当你使用【杀】或【决斗】对手牌数小于你的目标角色造成伤害时，你可以令伤害+1且具雷电伤害。（X为你已损失的体力值）\n<font color='white'>用【杀】或【决斗】令他人濒死时，其5%机率即死，狂袭+1%</font>",
 	["diwang:draw"] = "你想发动技能“帝王”令摸牌数为%src吗?",
 	["kuangxi"] = "狂袭",
 	[":kuangxi"] = "<img src=\"image/mark/@kuangxi.png\"><b><font color='green'>觉醒技，</font></b>当你进入濒死状态时，你减1点体力上限，弃置区域里的所有牌，摸X张牌，攻击范围+1，然后进行一个额外的回合。（X为存活角色数）",
@@ -11622,7 +11739,7 @@ sgs.LoadTranslationTable{
 	
 	----------杂兵----------
 	["zabing"] = "支援机",
-	[":zabing"] = "出牌阶段，你可以召唤支援机（副将）。\n一局游戏第一次召唤需消耗一次使用权。\n一回合过后、造成或受到1点伤害后，支援机耐久度-1，若为0则消失，\n下次出击需等待耐久度回复至满。",
+	[":zabing"] = "出牌阶段，你可以召唤支援机（副将）。\n一局游戏第一次召唤需消耗一次使用权。\n一回合过后、造成或受到1点伤害后，支援机耐久度-1，若为0则待机。\n待机出牌阶段开始时回复1点耐久度，再出击需待耐久度回复至满。",
 	["#zabing"] = "%from 召唤了 %arg 作为支援机出击！",
 	["ZAKU"] = "渣古ⅡF",
 	["#ZAKU"] = "自护的先锋",
@@ -11786,18 +11903,25 @@ end
 
 --【扭蛋、彩蛋模式】（置于页底以确保武将名翻译成功）
 if lucky_card then
+	if sgs.Sanguosha:translate("itemshow") == "itemshow" then
+		saveItem("Coin", 0)
+		for _,zb in pairs(zb_list) do
+			saveItem(zb, 0)
+		end
+		for _,sk in pairs(g_skin_cp) do
+			for _,t in ipairs(sk) do
+				if string.find(t, "_skin") then
+					saveItem(t, 0)
+				end
+			end
+		end
+	end
+	
 	local file = io.open(g2data, "r")
 	local tt = {}
 	if file ~= nil then
 		tt = file:read("*all"):split("\n")
 		file:close()
-	end
-	
-	if #tt < #zb_list + 1 then
-		saveItem("Coin", 0)
-		for _,zb in pairs(zb_list) do
-			saveItem(zb, 0)
-		end
 	end
 
 	local g2_property = "\n<img src=\"image/mark/@coin.png\">G币 = "
@@ -11806,6 +11930,17 @@ if lucky_card then
 		local s = a:split("=")
 		if s[1] == "Coin" then
 			g2_property = g2_property .. s[2] .. "\n\n<b>支援机使用权</b>:"
+		elseif string.find(s[1], "_skin") then
+			if string.find(tt[i-1], "_skin") == nil then
+				g2_property = g2_property .. "\n<b>机体皮肤</b>:\n"
+			end
+			local n = tonumber(string.sub(s[1], string.len(s[1])))
+			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. "皮肤" .. string.rep("I", n) .. ": "
+			if s[2] == "0" then
+				g2_property = g2_property .. "<font color='grey'>未获得</font>"
+			else
+				g2_property = g2_property .. "<font color='red'>已获得</font>"
+			end
 		else
 			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. " = " .. s[2]
 		end

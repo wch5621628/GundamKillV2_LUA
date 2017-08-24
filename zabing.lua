@@ -7,7 +7,7 @@
 
 --[[设定
 	支援机体力 = 耐久度
-	出牌阶段，点击“支援”按钮，召唤你喜欢的支援机，以副将的形式出击。
+	第二回合起，出牌阶段，点击“支援”按钮，召唤你喜欢的支援机，以副将的形式出击。
 	出牌阶段开始时、当你造成或受到1点伤害后，支援机耐久度-1，若为0则消失，X回合后才可再次召唤支援机出击。（X为其原耐久度）
 	各类支援机的使用权从“扭蛋”获得，每次抽到便令该支援机的可使用次数+3。
 	一场游戏中，第一次召唤支援机需消耗1次该支援机的使用次数，之后再召唤支援机时不消耗次数，但只能召唤第一次的支援机。
@@ -26,6 +26,13 @@ dangqiang = sgs.CreateTriggerSkill
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		if room:askForSkillInvoke(player, self:objectName(), data) then
+			local marks = player:getMarkNames()
+			for _,mark in pairs(marks) do
+				if mark:startsWith("@zb_") and player:getMark(mark) > 0 then
+					room:setPlayerMark(player, mark, 0)
+				end
+			end
+			room:setPlayerMark(player, "@zb_full5_re0", 0)
 			room:changeHero(player, "", false, false, true, false)
 			room:setEmotion(player, "skill_nullify")
 			return true
@@ -208,6 +215,13 @@ fuxicard = sgs.CreateSkillCard
 		log.from = use.from
 		log.arg = self:objectName()
 		room:sendLog(log)
+		local marks = use.from:getMarkNames()
+		for _,mark in pairs(marks) do
+			if mark:startsWith("@zb_") and use.from:getMark(mark) > 0 then
+				room:setPlayerMark(use.from, mark, 0)
+			end
+		end
+		room:setPlayerMark(use.from, "@zb_full5_re0", 0)
 		room:changeHero(use.from, "", false, false, true, false)
 		room:addPlayerMark(use.to:first(), "fuxi")
 	end
