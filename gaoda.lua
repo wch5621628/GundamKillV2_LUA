@@ -329,14 +329,14 @@ gdsrule = sgs.CreateTriggerSkill{
 	if event == sgs.GameOverJudge then
 	    local death = data:toDeath()
 		if death.who:objectName() == player:objectName() then
-			if death.damage and death.damage.from and string.find(death.damage.from:getGeneralName(), "FREEDOM") then
-				if string.find(death.who:getGeneralName(), "PROVIDENCE") then
+			if death.damage and death.damage.from and (string.find(death.damage.from:getGeneralName(), "FREEDOM") or string.find(death.damage.from:getGeneral2Name(), "FREEDOM")) then
+				if string.find(death.who:getGeneralName(), "PROVIDENCE") or string.find(death.who:getGeneral2Name(), "PROVIDENCE") then
 					room:doLightbox("image=image/animate/FREEDOM_PROVIDENCE.png", 1000)
-				elseif string.find(death.who:getGeneralName(), "SAVIOUR") then
+				elseif string.find(death.who:getGeneralName(), "SAVIOUR") or string.find(death.who:getGeneral2Name(), "SAVIOUR") then
 					room:doLightbox("image=image/animate/FREEDOM_SAVIOUR.png", 1000)
 				end
-			elseif ((death.damage and death.damage.from and death.damage.from:getGeneralName() == "IMPULSE") or death.who:hasFlag("IMPULSE_FREEDOM"))
-				and string.find(death.who:getGeneralName(), "FREEDOM") then
+			elseif ((death.damage and death.damage.from and (string.find(death.damage.from:getGeneralName(), "IMPULSE") or string.find(death.damage.from:getGeneral2Name(), "IMPULSE"))) or death.who:hasFlag("IMPULSE_FREEDOM"))
+				and (string.find(death.who:getGeneralName(), "FREEDOM") or string.find(death.who:getGeneral2Name(), "FREEDOM")) then
 				room:doLightbox("image=image/animate/IMPULSE_FREEDOM.png", 1000)
 			end
 			if file_exists("image/generals/card/"..death.who:getGeneralName()..".jpg") then
@@ -1197,11 +1197,17 @@ skincard = sgs.CreateSkillCard{
 	handling_method = sgs.Card_MethodNone,
 	about_to_use = function(self, room, use)
 		local source = use.from
+		local avail_list = self:getUserString():split("+")
+		
 		local name = source:getGeneralName()
 		local convert = {}
 		for _,cp in ipairs(g_skin_cp) do
-			if table.contains(cp, name) then
-				convert = cp
+			if string.find(name, cp[1]) then
+				for i,c in ipairs(cp) do
+					if i == 1 or table.contains(avail_list, c) then
+						table.insert(convert, c)
+					end
+				end
 				break
 			end
 		end
@@ -1214,8 +1220,12 @@ skincard = sgs.CreateSkillCard{
 			local name2 = source:getGeneral2Name()
 			local convert2 = {}
 			for _,cp2 in ipairs(g_skin_cp) do
-				if table.contains(cp2, name2) then
-					convert2 = cp2
+				if string.find(name2, cp2[1]) then
+					for i,c in ipairs(cp2) do
+						if i == 1 or table.contains(avail_list, c) then
+							table.insert(convert2, c)
+						end
+					end
 					break
 				end
 			end
@@ -1230,10 +1240,58 @@ skincard = sgs.CreateSkillCard{
 skin = sgs.CreateZeroCardViewAsSkill{
 	name = "skin&",
 	view_as = function(self)
-		return skincard:clone()
+		local acard = skincard:clone()
+		
+		local file = io.open(g2data, "r")
+		local tt = {}
+		if file ~= nil then
+			tt = file:read("*all"):split("\n")
+			file:close()
+		end
+		
+		local sk = {}
+		for _,item in pairs(tt) do
+			local s = item:split("=")
+			if string.find(s[1], "_skin") and tonumber(s[2]) > 0 then
+				table.insert(sk, s[1])
+			end
+		end
+		
+		acard:setUserString(table.concat(sk, "+"))
+		return acard
     end,
 	enabled_at_play = function(self, player)
-		return true
+		local file = io.open(g2data, "r")
+		local tt = {}
+		if file ~= nil then
+			tt = file:read("*all"):split("\n")
+			file:close()
+		end
+		
+		for _,item in pairs(tt) do
+			local s = item:split("=")
+			if string.find(s[1], "_skin") and tonumber(s[2]) > 0 then
+				local name = player:getGeneralName()
+				local skin_id =  string.find(name, "_skin")
+				if skin_id then
+					name = string.sub(name, 1, skin_id - 1)
+				end
+				
+				local name2 = ""
+				if player:getGeneral2() then
+					local name2 = player:getGeneral2Name()
+					local skin_id2 =  string.find(name2, "_skin")
+					if skin_id2 then
+						name2 = string.sub(name2, 1, skin_id2 - 1)
+					end
+				end
+				
+				if string.find(s[1], name) or (name2 ~= "" and string.find(s[1], name2)) then
+					return true
+				end
+			end
+		end
+		return false
 	end
 }
 
@@ -4813,10 +4871,10 @@ ew_lingshi = sgs.CreateTriggerSkill{
 		    player:loseMark("@ew_lingshi")
 			local sp_voice = 0
 			for _,p in sgs.qlist(room:getAlivePlayers()) do
-				if p:getGeneralName() == "EPYON" then
+				if string.find(p:getGeneralName(), "EPYON") or string.find(p:getGeneral2Name(), "EPYON") then
 					sp_voice = 1
 					break
-				elseif p:getGeneralName() == "ALTRON" then
+				elseif string.find(p:getGeneralName(), "ALTRON") or string.find(p:getGeneral2Name(), "ALTRON") then
 				    sp_voice = 2
 					break
 				end
@@ -5994,7 +6052,8 @@ juexin = sgs.CreateTriggerSkill
 		local use = data:toCardUse()
 		if use.card and use.card:getSkillName() == self:objectName() then
 			local to = use.to:first()
-			if to:getGeneralName() == "STRIKE" or string.find(to:getGeneralName(), "FREEDOM") or to:getGeneralName() == "SF" then
+			if string.find(to:getGeneralName(), "STRIKE") or string.find(to:getGeneralName(), "FREEDOM") or string.find(to:getGeneralName(), "SF")
+				or string.find(to:getGeneral2Name(), "STRIKE") or string.find(to:getGeneral2Name(), "FREEDOM") or string.find(to:getGeneral2Name(), "SF") then
 				room:broadcastSkillInvoke(self:objectName(), 2)
 				room:getThread():delay(1500)
 				room:broadcastSkillInvoke(self:objectName(), 1)
@@ -6359,6 +6418,12 @@ helie = sgs.CreateTriggerSkill{
 				room:broadcastSkillInvoke(self:objectName(), math.random(3, 4))
 			elseif string.find(player:getGeneralName(), "PROVIDENCE") then
 				room:broadcastSkillInvoke(self:objectName(), math.random(5, 6))
+			elseif string.find(player:getGeneral2Name(), "FREEDOM") then
+				room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
+			elseif string.find(player:getGeneral2Name(), "JUSTICE") then
+				room:broadcastSkillInvoke(self:objectName(), math.random(3, 4))
+			elseif string.find(player:getGeneral2Name(), "PROVIDENCE") then
+				room:broadcastSkillInvoke(self:objectName(), math.random(5, 6))
 			end
 			player:throwAllHandCards()
 			player:drawCards(player:getMaxHp())
@@ -6394,7 +6459,7 @@ jiaoxie = sgs.CreateTriggerSkill{
 				if #skill_list > 0 and room:askForSkillInvoke(p, self:objectName(), data) then
 					local choice = room:askForChoice(p, self:objectName(), table.concat(skill_list, "+"), data)
 					if choice then
-						if target:getGeneralName() == "PROVIDENCE" then
+						if string.find(target:getGeneralName(), "PROVIDENCE") or string.find(target:getGeneral2Name(), "PROVIDENCE") then
 							room:broadcastSkillInvoke(self:objectName(), 3)
 						else
 							room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
@@ -7256,8 +7321,10 @@ xinnian = sgs.CreateTriggerSkill
 			end
 		else
 			local damage = data:toDamage()
-			if damage.from and (damage.from:getGeneralName() == "AEGIS" or damage.from:getGeneralName() == "JUSTICE"
-				or damage.from:getGeneralName() == "SAVIOUR" or damage.from:getGeneralName() == "IJ") 
+			if damage.from and (string.find(damage.from:getGeneralName(), "AEGIS") or string.find(damage.from:getGeneralName(), "JUSTICE")
+				or string.find(damage.from:getGeneralName(), "SAVIOUR") or string.find(damage.from:getGeneralName(), "IJ")
+				or string.find(damage.from:getGeneral2Name(), "AEGIS") or string.find(damage.from:getGeneral2Name(), "JUSTICE")
+				or string.find(damage.from:getGeneral2Name(), "SAVIOUR") or string.find(damage.from:getGeneral2Name(), "IJ"))
 				and (not room:getTag("xinnian_voice"):toBool()) then
 				room:setTag("xinnian_voice", sgs.QVariant(true))
 				room:broadcastSkillInvoke(self:objectName(), 3)
@@ -7265,7 +7332,7 @@ xinnian = sgs.CreateTriggerSkill
 				room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
 			end
 			room:sendCompulsoryTriggerLog(player, self:objectName())
-			if damage.from:getGeneralName() == "IMPULSE" then --For death special scene use only
+			if string.find(damage.from:getGeneralName(), "IMPULSE") or string.find(damage.from:getGeneral2Name(), "IMPULSE") then --For death special scene use only
 				room:setPlayerFlag(player, "IMPULSE_FREEDOM")
 				room:loseHp(player)
 				room:setPlayerFlag(player, "-IMPULSE_FREEDOM")
