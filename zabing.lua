@@ -30,9 +30,10 @@ dangqiang = sgs.CreateTriggerSkill
 			for _,mark in pairs(marks) do
 				if mark:startsWith("@zb_") and player:getMark(mark) > 0 then
 					room:setPlayerMark(player, mark, 0)
+					break
 				end
 			end
-			room:setPlayerMark(player, "@zb_full5_re0", 0)
+			room:setPlayerMark(player, "@zb_full5_re0", 1)
 			room:changeHero(player, "", false, false, true, false)
 			room:setEmotion(player, "skill_nullify")
 			return true
@@ -219,9 +220,10 @@ fuxicard = sgs.CreateSkillCard
 		for _,mark in pairs(marks) do
 			if mark:startsWith("@zb_") and use.from:getMark(mark) > 0 then
 				room:setPlayerMark(use.from, mark, 0)
+				break
 			end
 		end
-		room:setPlayerMark(use.from, "@zb_full5_re0", 0)
+		room:setPlayerMark(use.from, "@zb_full5_re0", 1)
 		room:changeHero(use.from, "", false, false, true, false)
 		room:addPlayerMark(use.to:first(), "fuxi")
 	end
