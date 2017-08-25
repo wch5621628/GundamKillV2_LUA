@@ -10170,9 +10170,10 @@ tonghua = sgs.CreateTriggerSkill{
 				end
 			end
 			if red < 3 then return false end
+			room:setPlayerFlag(player, "skip_anime")
 			room:sendCompulsoryTriggerLog(player, self:objectName())
-			--Emotion
-			--Avator
+			room:setEmotion(player, "tonghua")
+			room:getThread():delay(5000)
 			player:gainMark("@tonghua")
 			room:setPlayerMark(player, "tonghua", 1)
 			room:loseMaxHp(player)
