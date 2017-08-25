@@ -10347,7 +10347,6 @@ REX = sgs.General(extension, "REX", "TEKKADAN", 4, true, false)
 
 diwang = sgs.CreateTriggerSkill{
 	name = "diwang",
-	frequency = sgs.Skill_Compulsory,
 	events = {sgs.TargetSpecified, sgs.DamageCaused, sgs.DrawNCards},
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
@@ -11737,7 +11736,7 @@ sgs.LoadTranslationTable{
 	["cv:BUILD_BURNING"] = "神木·世界",
 	["illustrator:BUILD_BURNING"] = "wch5621628",
 	["ciyuanbawangliu"] = "次元霸王流",
-	[":ciyuanbawangliu"] = "出牌阶段开始时，若你的<b>“拳法”</b>少于五张，你亮出牌堆顶的三张牌，将其中的【杀】、【决斗】、【过河拆桥】、【顺手牵羊】和【火攻】依次置于武将牌上，称为<b>“拳法”</b>（至多五张）。当你使用【杀】、【决斗】、【过河拆桥】、【顺手牵羊】或【火攻】时，你可以弃置一张<b>“拳法”</b>，令效果视为此<b>“拳法”</b>。",
+	[":ciyuanbawangliu"] = "出牌阶段开始时，若你的<b>“拳法”</b>少于五张，你亮出牌堆顶的三张牌，将其中的【杀】、【决斗】、【过河拆桥】、【顺手牵羊】和【火攻】依次置于武将牌上，称为<b>“拳法”</b>（至多五张）；当你使用这五种牌时，你可以<u>弃置</u>一张<b>“拳法”</b>，令使用效果视为此<b>“拳法”</b>。",
 	["@ciyuanbawangliu"] = "你可以发动“次元霸王流”，令牌名视为“拳法”",
 	["~ciyuanbawangliu"] = "选择“拳法”→确定",
 	["quanfa"] = "拳法",

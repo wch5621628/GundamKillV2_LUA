@@ -9,14 +9,14 @@
 	支援机体力 = 耐久度
 	第二回合起，出牌阶段，点击“支援”按钮，召唤你喜欢的支援机，以副将的形式出击。
 	出牌阶段开始时、当你造成或受到1点伤害后，支援机耐久度-1，若为0则消失，X回合后才可再次召唤支援机出击。（X为其原耐久度）
-	各类支援机的使用权从“扭蛋”获得，每次抽到便令该支援机的可使用次数+3。
+	各类支援机的使用权从“扭蛋”获得，每次抽到便令该支援机的可使用次数+1/+3。
 	一场游戏中，第一次召唤支援机需消耗1次该支援机的使用次数，之后再召唤支援机时不消耗次数，但只能召唤第一次的支援机。
 ]]
 
 module("extensions.zabing", package.seeall)
 extension = sgs.Package("zabing")
 
-ZAKU = sgs.General(extension, "ZAKU", "", 5, true, true) --BUG:耐久度, phase bar 4
+ZAKU = sgs.General(extension, "ZAKU", "", 5, true, true)
 ZAKU:setGender(sgs.General_Neuter)
 
 dangqiang = sgs.CreateTriggerSkill
