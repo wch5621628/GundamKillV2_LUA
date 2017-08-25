@@ -9336,18 +9336,18 @@ ELSQ:addSkill(ronghe)
 ELSQ:addSkill(rongheclear)
 ELSQ:addSkill(lijie)
 
-FS = sgs.General(extension, "00QFS", "CB", 4, true, dlc, dlc)
+--[[FS = sgs.General(extension, "00QFS", "CB", 4, true, dlc, dlc)
 if dlc then
 	if t[1] then
 		local times = tonumber(t[1]:split("/")[2])
 		if times == 5 and sgs.Sanguosha:translate("#00QFS") == "#00QFS" then
 			sgs.Alert("累计5场游戏——你获得新机体：00QAN[T] FULL SABER！")
 		end
-		if times >= 5 then
+		if times >= 5 then]]
 			FS = sgs.General(extension, "00QFS", "CB", 4, true, false)
-		end
+		--[[end
 	end
-end
+end]]
 
 function QuanrenMove(ids, movein, player)
 	local room = player:getRoom()
