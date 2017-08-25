@@ -10028,7 +10028,7 @@ DARK_MATTER:addSkill(DM_TRANSAM)
 DARK_MATTER:addSkill(DM_TRANSAMslash)
 DARK_MATTER:addSkill(DM_TRANSAMmark)
 
-BUILD_BURNING = sgs.General(extension, "BUILD_BURNING", "OTHERS", 4, true, true)
+BUILD_BURNING = sgs.General(extension, "BUILD_BURNING", "OTHERS", 4, true, false)
 
 ciyuanbawangliucard = sgs.CreateSkillCard{
 	name = "ciyuanbawangliu",
@@ -10041,7 +10041,7 @@ ciyuanbawangliucard = sgs.CreateSkillCard{
 			room:obtainCard(source, self)
 		else
 			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_THROW, source:objectName(), self:objectName(), nil)
-			room:throwCard(self, reason, source, source)
+			room:throwCard(self, reason, source)
 		end
 	end
 }
