@@ -1184,6 +1184,7 @@ if g_skin then --BUG:hide some skins for KrAu!
 		{"PROVIDENCE", "PROVIDENCE_skin1", "PROVIDENCE_skin2"},
 		{"SAVIOUR", "SAVIOUR_skin1"},
 		{"SF", "SF_skin1", "SF_skin2"},
+		{"BUILD_BURNING", "BUILD_BURNING_skin1"},
 		{"BARBATOS", "BARBATOS_skin1"},
 		{"LUPUS", "LUPUS_skin1"},
 		{"REX", "REX_skin1"}
@@ -11963,6 +11964,7 @@ if g_skin then
 	SAVIOUR_skin1 = sgs.General(extension, "SAVIOUR_skin1", "ZAFT", 4, true, true, true)
 	SF_skin1 = sgs.General(extension, "SF_skin1", "ORB", 4, true, true, true)
 	SF_skin2 = sgs.General(extension, "SF_skin2", "ORB", 4, true, true, true)
+	BUILD_BURNING_skin1 = sgs.General(extension, "BUILD_BURNING_skin1", "OTHERS", 4, true, true, true)
 	BARBATOS_skin1 = sgs.General(extension, "BARBATOS_skin1", "TEKKADAN", 4, true, true, true)
 	LUPUS_skin1 = sgs.General(extension, "LUPUS_skin1", "TEKKADAN", 4, true, true, true)
 	REX_skin1 = sgs.General(extension, "REX_skin1", "TEKKADAN", 4, true, true, true)
