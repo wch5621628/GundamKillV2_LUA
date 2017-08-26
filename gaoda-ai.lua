@@ -3401,6 +3401,59 @@ end
 sgs.ai_use_value["dm_transam"] = sgs.ai_use_value.Slash + 0.2
 sgs.ai_use_priority["dm_transam"] = sgs.ai_use_priority.Slash + 0.05
 
+--创制燃焰
+sgs.ai_skill_use["@@ciyuanbawangliu"] = function(self, prompt)
+	local use = self.player:getTag("ciyuanbawangliu"):toCardUse()
+	local quanfa = self.player:getPile("quanfa")
+	for _,p in sgs.qlist(use.to) do
+		for _,id in sgs.qlist(quanfa) do
+			local qcard = sgs.Sanguosha:getCard(id)
+			local name = qcard:objectName()
+			if self.player:getMark("@tonghua") > 0 and qcard:isRed() then
+				name = "fire_slash"
+			end
+			local acard = sgs.Sanguosha:cloneCard(name, use.card:getSuit(), use.card:getNumber())
+			acard:addSubcard(use.card)
+			
+			if (use.card:isKindOf("Dismantlement") or use.card:isKindOf("Snatch")) and (p:getArmor() or p:getDefensiveHorse()) then
+				return "."
+			end
+			
+			local effective = (acard:isKindOf("Slash") and self:slashIsEffective(acard, p, self.player))
+								or (acard:isKindOf("TrickCard") and self:hasTrickEffective(acard, p, self.player))
+			
+			if self.player:getMark("@tonghua") == 0 then
+				if use.card:isKindOf("Slash") then
+					if use.card:hasFlag("drank") then
+						if qcard:isBlack() and qcard:isKindOf("Slash") and self:slashIsEffective(acard, p, self.player) then
+							return ("#ciyuanbawangliu:" .. id .. ":")
+						end
+					else
+						if qcard:isBlack() and effective then
+							return ("#ciyuanbawangliu:" .. id .. ":")
+						end
+					end
+				else
+					if qcard:isBlack() and effective then
+						return ("#ciyuanbawangliu:" .. id .. ":")
+					end
+				end
+			else
+				if use.card:isKindOf("Slash") then
+					if qcard:isKindOf("TrickCard") and effective then
+						return ("#ciyuanbawangliu:" .. id .. ":")
+					end
+				else
+					if effective then
+						return ("#ciyuanbawangliu:" .. id .. ":")
+					end
+				end
+			end
+		end
+	end
+    return "."
+end
+
 --巴巴托斯
 sgs.ai_skill_invoke.tiexue = function(self, data)
 	return true

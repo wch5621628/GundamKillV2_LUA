@@ -10037,7 +10037,9 @@ ciyuanbawangliucard = sgs.CreateSkillCard{
 	handling_method = sgs.Card_MethodNone,
 	on_use = function(self, room, source, targets)
 		if source:getMark("@tonghua") > 0 then
-			room:sendCompulsoryTriggerLog(source, "tonghua")
+			if self:isRed() then
+				room:sendCompulsoryTriggerLog(source, "tonghua")
+			end
 			room:obtainCard(source, self)
 		else
 			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_THROW, source:objectName(), self:objectName(), nil)
@@ -10054,6 +10056,7 @@ ciyuanbawangliuvs = sgs.CreateOneCardViewAsSkill{
 	view_as = function(self, card)
 		local acard = ciyuanbawangliucard:clone()
 		acard:addSubcard(card)
+		acard:setSkillName(self:objectName())
 		return acard
 	end
 }
@@ -10101,7 +10104,9 @@ ciyuanbawangliu = sgs.CreateTriggerSkill{ --FAQ:使用次数算转化前的牌�
 			local use = data:toCardUse()
 			if use.card and (not player:getPile("quanfa"):isEmpty()) and
 				(use.card:isKindOf("Slash") or use.card:isKindOf("Duel") or use.card:isKindOf("Dismantlement") or use.card:isKindOf("Snatch") or use.card:isKindOf("FireAttack")) then
+				player:setTag("ciyuanbawangliu", data)
 				local card = room:askForUseCard(player, "@@ciyuanbawangliu", "@ciyuanbawangliu")
+				player:setTag("ciyuanbawangliu", sgs.QVariant())
 				if card then
 					local qcard = sgs.Sanguosha:getCard(card:getSubcards():first())
 					local name = qcard:objectName()
@@ -10172,12 +10177,13 @@ tonghua = sgs.CreateTriggerSkill{
 			if red < 3 then return false end
 			room:setPlayerFlag(player, "skip_anime")
 			room:sendCompulsoryTriggerLog(player, self:objectName())
+			room:broadcastSkillInvoke(self:objectName())
 			room:setEmotion(player, "tonghua")
 			room:getThread():delay(4500)
 			player:gainMark("@tonghua")
 			room:setPlayerMark(player, "tonghua", 1)
 			room:loseMaxHp(player)
-			player:drawCards(2)
+			player:drawCards(2, self:objectName())
 		end
 	end
 }
@@ -11744,6 +11750,8 @@ sgs.LoadTranslationTable{
 	["tonghua"] = "同化",
 	[":tonghua"] = "<img src=\"image/mark/@tonghua.png\"><b><font color='green'>觉醒技，</font></b>准备阶段开始时，若你的<b>“拳法”</b>有三张<b><font color='red'>红色</font></b>牌，你减1点体力上限，摸两张牌，并获得以下效果：你的<b><font color='red'>红色</font></b><b>“拳法”</b>视为火【杀】，<b>“次元霸王流”</b>描述的<b>“弃置”</b>改为<b>“获得”</b>。",
 	["@tonghua"] = "同化",
+	["$ciyuanbawangliu"] = "（~波纹声~）",
+	["$tonghua"] = "我还…行的，还可以作战，对吧，创制燃焰！",
 	
 	["BARBATOS"] = "巴巴托斯",
 	["#BARBATOS"] = "铁血的孤儿",
