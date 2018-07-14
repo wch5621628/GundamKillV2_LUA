@@ -233,11 +233,9 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
-	end
-	if card[2] == "peach" or card[2] == "analeptic" or card[2] == "ex_nihilo" or card[2] == "amazing_grace" or card[2] == "savage_assault" or card[2] == "archery_attack" or card[2] == "god_salvation" then
+	elseif card[2] == "peach" or card[2] == "analeptic" or card[2] == "ex_nihilo" or card[2] == "amazing_grace" or card[2] == "savage_assault" or card[2] == "archery_attack" or card[2] == "god_salvation" then
 	    return ("%s:shensheng[%s:%s]=%s"):format(card[2],card[3],card[4],card[5])
-	end
-	if card[2] == "iron_chain" then
+	elseif card[2] == "iron_chain" then
 	    local situation_is_friend = false
 	    for _, friend in ipairs(self.friends) do
 		    if friend:isChained() and (not friend:isProhibited(friend, sgs.Sanguosha:getCard(card[5]))) then
@@ -275,8 +273,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			    return "."
 			end
 	    end
-	end
-	if card[2] == "fire_attack" then
+	elseif card[2] == "fire_attack" then
 	    self:sort(self.enemies, "hp")
 		local targets = {}
 		for _, enemy in ipairs(self.enemies) do
@@ -290,8 +287,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
-	end
-	if card[2] == "dismantlement" then
+	elseif card[2] == "dismantlement" then
 	    self:sort(self.enemies, "handcard")
 		local targets = {}
 		for _, enemy in ipairs(self.enemies) do
@@ -305,8 +301,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
-	end
-	if card[2] == "snatch" then
+	elseif card[2] == "snatch" then
 	    self:sort(self.enemies, "handcard")
 		local targets = {}
 		for _, enemy in ipairs(self.enemies) do
@@ -321,8 +316,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
-	end
-	if card[2] == "collateral" then
+	elseif card[2] == "collateral" then
 	    self:sort(self.enemies, "handcard")
 		local targets = {}
 		for _, enemy in ipairs(self.enemies) do
@@ -343,8 +337,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
-	end
-	if card[2] == "duel" then
+	elseif card[2] == "duel" then
 	    self:sort(self.enemies, "handcard")
 		local targets = {}
 		for _, enemy in ipairs(self.enemies) do
@@ -358,8 +351,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
-	end
-	if card[2] == "supply_shortage" then
+	elseif card[2] == "supply_shortage" then
 	    self:sort(self.enemies, "handcard")
 		local targets = {}
 		for _, enemy in ipairs(self.enemies) do
@@ -375,8 +367,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
-	end
-	if card[2] == "indulgence" then
+	elseif card[2] == "indulgence" then
 	    self:sort(self.enemies, "hp")
 		local targets = {}
 		for _, enemy in ipairs(self.enemies) do
@@ -390,18 +381,273 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		else
 		    return "."
 		end
+	elseif card[2] == "tactical_combo" then
+		local targets = {}
+		local friends = self.friends
+		for i = 1, 2, 1 do
+			local n = math.random(#friends)
+			table.insert(targets, friends[n]:objectName())
+			table.removeOne(friends, friends[n])
+			if #friends == 0 then break end
+		end
+		if #targets > 0 then
+			return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		else
+			return "."
+		end
 	end
 	return "."
 end
 
 --高达
-sgs.ai_skill_invoke.yuanzu = function(self, data)
+--[[sgs.ai_skill_invoke.yuanzu = function(self, data)
 	return true
 end
 
 sgs.ai_skill_choice.yuanzu = function(self, choices, data)
 	local choice = choices:split("+")
 	return choice[math.random(1, #choice)]
+end]]
+
+sgs.ai_skill_invoke.baizhan = function(self, data)
+	local damage = data:toDamage()
+	return not self:isFriend(damage.to)
+end
+
+sgs.ai_skill_use["@@baizhan"]=function(self,prompt)
+    self:updatePlayers()
+	local name = self.player:property("baizhan"):toString()
+	local num = self.player:getMark("baizhan")
+	local cards = sgs.QList2Table(self.player:getCards("he"))
+	self:sortByKeepValue(cards)
+	
+	for _, card in ipairs(cards) do
+		if card:getNumber() > num and (not isCard("Peach", card, self.player) and not isCard("ExNihilo", card, self.player))
+			and (self.player:getHp() > 1 or (not isCard("Jink", card, self.player) and not isCard("Analeptic", card, self.player))) then
+			
+			local baizhan_card = sgs.Sanguosha:cloneCard(name)
+			baizhan_card:addSubcard(card)
+			
+			if name == "slash" or name == "fire_slash" or name == "thunder_slash" then
+				self:sort(self.enemies, "defense")
+				local targets = {}
+				for _,enemy in ipairs(self.enemies) do
+					if (not self:slashProhibit(baizhan_card, enemy)) and self.player:canSlash(enemy, baizhan_card) then
+						if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, baizhan_card) then break end
+						table.insert(targets,enemy:objectName())
+					end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "peach" or name == "analeptic" or name == "ex_nihilo" or name == "amazing_grace" or name == "savage_assault" or name == "archery_attack" or name == "god_salvation" then
+				return ("%s:baizhan[%s:%s]=%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId())
+			elseif name == "iron_chain" then
+				local situation_is_friend = false
+				for _, friend in ipairs(self.friends) do
+					if friend:isChained() and (not friend:isProhibited(friend, baizhan_card)) then
+						situation_is_friend = true
+					end
+				end
+				if situation_is_friend then
+					local targets = {}
+					for _, friend in ipairs(self.friends) do
+						if friend:isChained() and (not friend:isProhibited(friend, baizhan_card)) then
+							if #targets >= 2 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, baizhan_card) then break end
+							table.insert(targets,friend:objectName())
+						end
+					end
+					if #targets > 0 then
+						return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+					else
+						return "."
+					end
+				else
+					local chained_enemy = 0
+					local targets = {}
+					for _, enemy in ipairs(self.enemies) do
+						if enemy:isChained() then
+							chained_enemy = chained_enemy + 1
+						end
+						if (not enemy:isChained()) and (not enemy:isProhibited(enemy, baizhan_card)) then
+							if #targets >= 2 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, baizhan_card) then break end
+							table.insert(targets,enemy:objectName())
+						end
+					end
+					if (#targets + chained_enemy) > 1 then
+						return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+					else
+						return "."
+					end
+				end
+			elseif name == "fire_attack" then
+				self:sort(self.enemies, "hp")
+				local targets = {}
+				for _, enemy in ipairs(self.enemies) do
+					if (not enemy:isKongcheng()) and (not enemy:isProhibited(enemy, baizhan_card)) then
+						if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, baizhan_card) then break end
+						table.insert(targets,enemy:objectName())
+					end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "dismantlement" then
+				self:sort(self.enemies, "handcard")
+				local targets = {}
+				for _, enemy in ipairs(self.enemies) do
+					if (not enemy:isAllNude()) and (not enemy:isProhibited(enemy, baizhan_card)) then
+						if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, baizhan_card) then break end
+						table.insert(targets,enemy:objectName())
+					end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "snatch" then
+				self:sort(self.enemies, "handcard")
+				local targets = {}
+				for _, enemy in ipairs(self.enemies) do
+					if (not enemy:isAllNude()) and (not enemy:isProhibited(enemy, baizhan_card)) and
+					self.player:distanceTo(enemy) <= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_DistanceLimit, self.player, baizhan_card) then
+						if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, baizhan_card) then break end
+						table.insert(targets,enemy:objectName())
+					end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "collateral" then
+				self:sort(self.enemies, "handcard")
+				local targets = {}
+				for _, enemy in ipairs(self.enemies) do
+					if enemy:getWeapon() and (not enemy:isProhibited(enemy, baizhan_card)) then
+						for _, tos in ipairs(self.enemies) do
+							if enemy:objectName() ~= tos:objectName() and
+							enemy:canSlash(tos, sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)) and
+							(not tos:isProhibited(tos, sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0))) then
+								table.insert(targets,enemy:objectName())
+								table.insert(targets,tos:objectName())
+								break
+							end
+						end
+					end
+				end
+				if #targets > 1 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "duel" then
+				self:sort(self.enemies, "handcard")
+				local targets = {}
+				for _, enemy in ipairs(self.enemies) do
+					if (not enemy:isProhibited(enemy, baizhan_card)) then
+						if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, baizhan_card) then break end
+						table.insert(targets,enemy:objectName())
+					end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "supply_shortage" then
+				self:sort(self.enemies, "handcard")
+				local targets = {}
+				for _, enemy in ipairs(self.enemies) do
+					if (not enemy:containsTrick("supply_shortage")) and
+					(not enemy:isProhibited(enemy, baizhan_card)) and
+					self.player:distanceTo(enemy) <= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_DistanceLimit, self.player, baizhan_card) then
+						table.insert(targets,enemy:objectName())
+						break
+					end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "indulgence" then
+				self:sort(self.enemies, "hp")
+				local targets = {}
+				for _, enemy in ipairs(self.enemies) do
+					if (not enemy:containsTrick("indulgence")) and (not enemy:isProhibited(enemy, baizhan_card)) then
+						table.insert(targets,enemy:objectName())
+						break
+					end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			elseif name == "tactical_combo" then
+				local targets = {}
+				local friends = self.friends
+				for i = 1, 2, 1 do
+					local n = math.random(#friends)
+					table.insert(targets, friends[n]:objectName())
+					table.removeOne(friends, friends[n])
+					if #friends == 0 then break end
+				end
+				if #targets > 0 then
+					return ("%s:baizhan[%s:%s]=%s->%s"):format(name,card:getSuitString(),card:getNumberString(),card:getId(),table.concat(targets,"+"))
+				else
+					return "."
+				end
+			end
+		end
+	end
+	return "."
+end
+
+local zhongjie_skill = {}
+zhongjie_skill.name = "zhongjie"
+table.insert(sgs.ai_skills, zhongjie_skill)
+zhongjie_skill.getTurnUseCard = function(self, inclusive)
+	if #self.enemies == 0 then return false end
+	self:sort(self.enemies, "hp")
+	if self:slashProhibit(sgs.Sanguosha:cloneCard("slash"), self.enemies[1]) then return false end
+    if self.player:getMark("@zhongjie") > 0 and ((self.player:getHp() <= 1 and self.room:alivePlayerCount() > 2 and not self.player:isLord()) or
+		(self.player:getHp() <= 2 and self:isWeak() and #self.enemies == 1 and self.enemies[1]:getHp() == 1)) then
+		return sgs.Card_Parse("#zhongjie:.:")
+	end
+end
+
+sgs.ai_skill_use_func["#zhongjie"] = function(card, use, self)
+	self:sort(self.enemies, "hp")
+	use.card = card
+	if use.to then
+		use.to:append(self.enemies[1])
+		return
+	end
+end
+
+sgs.ai_use_value["zhongjie"] = sgs.ai_use_value.Slash
+sgs.ai_use_priority["zhongjie"] = 0.01
+
+--夏亚渣古Ⅱ
+sgs.ai_skill_invoke.huixing = function(self, data)
+	if self.player:getPhase() == sgs.Player_Draw then
+		return true
+	else
+		local resp = data:toCardResponse()
+		return not self:isFriend(resp.m_who)
+	end
+end
+
+--ZETA
+sgs.ai_skill_invoke.chihun = function(self, data)
+	return true
 end
 
 --独角兽
@@ -3452,6 +3698,29 @@ sgs.ai_skill_use["@@ciyuanbawangliu"] = function(self, prompt)
 		end
 	end
     return "."
+end
+
+--G-SELF
+sgs.ai_skill_invoke["#G_SELF_skill"] = function(self, data)
+	return true
+end
+
+sgs.ai_view_as.huanse = function(card, player, card_place)
+	local suit = card:getSuitString()
+	local number = card:getNumberString()
+	local card_id = card:getEffectiveId()
+	if card_place == sgs.Player_PlaceHand then
+		if card:isKindOf("Jink") then
+			return ("nullification:G_SELF_SPACE_skill[%s:%s]=%d"):format(suit, number, card_id)
+		elseif card:isKindOf("Nullification") then
+			return ("jink:G_SELF_SPACE_skill[%s:%s]=%d"):format(suit, number, card_id)
+		end
+	end
+end
+
+sgs.ai_skill_invoke["#G_SELF_HT_skill"] = function(self, data)
+	local target = self.player:getTag("G_SELF_HT_skill"):toPlayer()
+	return self:isEnemy(target)
 end
 
 --巴巴托斯

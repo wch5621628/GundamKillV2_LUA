@@ -40,3 +40,21 @@ sgs.ai_nullification.TacticalCombo = function(self, card, from, to, positive)
 end
 
 sgs.ai_use_priority.LaplaceBox = 0.8
+
+--高达杀乱入卡
+function SmartAI:useCardFinalVent(card, use)
+	use.card = card
+	if use.to then
+		self:sort(self.enemies, "hp")
+		for _,enemy in ipairs(self.enemies) do
+			if enemy:getMark("@duilieB") > 0 and math.mod(card:getNumber(), 2) == 0 and card:getNumber() > 0 then continue end
+			use.to:append(enemy)
+			return
+		end
+	end
+end
+
+sgs.ai_use_priority.FinalVent = sgs.ai_use_priority.FireAttack + 0.1
+sgs.ai_use_value.FinalVent = sgs.ai_use_value.FireAttack + 0.1
+sgs.ai_keep_value.FinalVent = sgs.ai_keep_value.FireAttack + 0.1
+sgs.dynamic_value.benefit.FinalVent = true
