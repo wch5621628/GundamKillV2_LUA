@@ -646,9 +646,142 @@ sgs.ai_skill_invoke.huixing = function(self, data)
 end
 
 --ZETA
+local bianxing_skill = {}
+bianxing_skill.name = "bianxing"
+table.insert(sgs.ai_skills, bianxing_skill)
+bianxing_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:hasUsed("#bianxing") then return false end
+	if self.player:hasSkill("jvjian") then
+		if #self.enemies == 0 or self:getCardsNum("Slash") == 0 or self.player:getCardCount() <= 1 then return false end
+		self:sort(self.enemies, "defenseSlash")
+		local f = function(a, b)
+			return self.player:distanceTo(a) < self.player:distanceTo(b)
+		end
+		table.sort(self.enemies, f)
+		if not self:slashProhibit(sgs.Sanguosha:cloneCard("slash"), self.enemies[1]) and self.player:distanceTo(self.enemies[1]) - self.player:getAttackRange() <= 1
+			and (self.player:distanceTo(self.enemies[1]) - self.player:getAttackRange() == 1 or self:getCardsNum("Slash") > 1 or self.enemies[1]:getArmor()) then
+			return sgs.Card_Parse("#bianxing:.:")
+		end
+	elseif self.player:hasSkill("tuci") then
+		if self.player:getCardCount() > 1 and not sgs.Slash_IsAvailable(self.player) then
+			return sgs.Card_Parse("#bianxing:.:")
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#bianxing"] = function(card, use, self)
+	local cards = sgs.QList2Table(self.player:getCards("he"))
+	self:sortByUseValue(cards, true)
+	for _,card in ipairs(cards) do
+		if card:isKindOf("Peach") or card:isKindOf("ExNihilo") then continue end
+		if card:isKindOf("Jink") and self:getCardsNum("Jink") == 1 then continue end
+		if self.player:hasSkill("jvjian") and card:isKindOf("Slash") and self:getCardsNum("Slash") == 1 then continue end
+		use.card = sgs.Card_Parse("#bianxing:"..card:getId()..":")
+		return
+	end
+end
+
+sgs.ai_use_value["bianxing"] = sgs.ai_use_value.Slash
+sgs.ai_use_priority["bianxing"] = sgs.ai_use_value.Slash + 1
+
+sgs.ai_skill_use["@@bianxing!"] = function(self, prompt)
+	local cards = self.player:getCards("he")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards, true)
+	for _,card in ipairs(cards) do
+		if card:isKindOf("Peach") or card:isKindOf("ExNihilo") then continue end
+		if card:isKindOf("Jink") and self:getCardsNum("Jink") == 1 then continue end
+		if card:isKindOf("Slash") and self:getCardsNum("Slash") == 1 then continue end
+		return ("#bianxing:"..card:getId()..":")
+	end
+end
+
 sgs.ai_skill_invoke.chihun = function(self, data)
 	return true
 end
+
+local jvjian_skill = {}
+jvjian_skill.name = "jvjian"
+table.insert(sgs.ai_skills, jvjian_skill)
+jvjian_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:getMark("@chihun") > 0 and self.player:getMark("@jvjian") > 0 and #self.enemies > 0 then
+		for _,card in sgs.qlist(self.player:getCards("he")) do
+			if card:isKindOf("Weapon") and card:isRed() then
+				return sgs.Card_Parse("#jvjian:.:")
+			end
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#jvjian"] = function(card, use, self)
+	self:sort(self.enemies, "hp")
+	for _,card in sgs.qlist(self.player:getCards("he")) do
+		use.card = sgs.Card_Parse("#jvjian:" .. card:getId() .. ":")
+		if use.to then use.to:append(self.enemies[1]) end
+		return
+	end
+end
+
+sgs.ai_use_value["jvjian"] = sgs.ai_use_value.Slash * 2
+sgs.ai_use_priority["jvjian"] = sgs.ai_use_priority.Slash
+
+sgs.ai_skill_choice.chonglang = function(self, choices, data)
+	choices = choices:split("+")
+	local use = data:toCardUse()
+	if table.contains(choices, "chonglangB") then
+		if use.to:first():getArmor() then
+			return "chonglangB"
+		end
+	end
+	if table.contains(choices, "chonglangA") then
+		if self.player:getCardCount() > 1 and (not self.player:hasUsed("#bianxing") or self:getCardsNum("Slash") > 0)then
+			return "chonglangA"
+		else
+			if table.contains(choices, "chonglangB") then
+				return "chonglangB"
+			end
+		end
+	end
+	return "cancel"
+end
+
+local tuci_skill = {}
+tuci_skill.name = "tuci"
+table.insert(sgs.ai_skills, tuci_skill)
+tuci_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:getMark("@chihun") > 0 and self.player:getMark("@tuci") > 0 and #self.enemies > 0 then
+		local x = 1
+		for _,p in sgs.qlist(self.room:getPlayers()) do
+			if p:objectName() ~= self.player:objectName() and p:isDead() then
+				x = x + 1
+			end
+		end
+		if x >= (self.player:getHp() + self:getCardsNum("Peach") + self:getCardsNum("Analeptic"))
+			and (self.player:isLord() or #self.friends_noself == 0) then return false end
+		for _, enemy in ipairs(self.enemies) do
+			if self.player:inMyAttackRange(enemy) then
+				return sgs.Card_Parse("#tuci:.:")
+			end
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#tuci"] = function(card, use, self)
+	local f = function(a, b)
+		return a:getLostHp() < b:getLostHp()
+	end
+	table.sort(self.enemies, f)
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:inMyAttackRange(enemy) then
+			use.card = sgs.Card_Parse("#tuci:.:")
+			if use.to then use.to:append(self.enemies[1]) end
+			return
+		end
+	end
+end
+
+sgs.ai_use_value["tuci"] = 2.33
+sgs.ai_use_priority["tuci"] = sgs.ai_use_value.Slash + 2.33
 
 --独角兽
 sgs.ai_skill_invoke.shenshou = function(self, data)
@@ -3058,7 +3191,7 @@ sgs.ai_skill_use_func["#jidong"] = function(card, use, self)
 		local cards = sgs.QList2Table(self.player:getCards("he"))
 		self:sortByUseValue(cards, true)
 		for _,card in ipairs(cards) do
-			if card:isKindOf("Peach") or card:isKindOf("ExNihilo") or card:isKindOf("FireSlash") or card:isKindOf("ThunderSlash") then return false end
+			if card:isKindOf("Peach") or card:isKindOf("ExNihilo") or card:isKindOf("FireSlash") or card:isKindOf("ThunderSlash") then continue end
 			use.card = sgs.Card_Parse("#jidong:"..card:getId()..":")
 			return
 		end

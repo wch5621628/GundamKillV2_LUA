@@ -43,6 +43,7 @@ sgs.ai_use_priority.LaplaceBox = 0.8
 
 --高达杀乱入卡
 function SmartAI:useCardFinalVent(card, use)
+	if #self.enemies == 0 then return false end
 	use.card = card
 	if use.to then
 		self:sort(self.enemies, "hp")

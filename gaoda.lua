@@ -2362,6 +2362,7 @@ huixing = sgs.CreateTriggerSkill{
 				room:moveCardsAtomic(move, true)
 				local card = sgs.Sanguosha:getCard(ids:first())
 				if card:isRed() then
+					room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
 					player:obtainCard(card)
 				end
 			end
@@ -2386,6 +2387,7 @@ huixing = sgs.CreateTriggerSkill{
 			if resp.m_card:isKindOf("Jink") and resp.m_card:getSkillName() == "xiaya" and subcard:isKindOf("Slash") and room:askForSkillInvoke(player, self:objectName(), data) then
 				player:drawCards(1, self:objectName())
 				if resp.m_who then
+					room:broadcastSkillInvoke(self:objectName(), math.random(3, 4))
 					room:useCard(sgs.CardUseStruct(subcard, player, resp.m_who))
 				end
 			end
@@ -2539,7 +2541,7 @@ chonglang = sgs.CreateTriggerSkill{
 				end
 			end
 			if #choices == 1 then return false end
-			local choice = room:askForChoice(player, self:objectName(), table.concat(choices, "+"))
+			local choice = room:askForChoice(player, self:objectName(), table.concat(choices, "+"), data)
 			if choice == "chonglangA" then
 				if room:askForUseCard(player, "@@bianxing!", "@bianxing") then
 					if use.m_addHistory then
@@ -11511,12 +11513,16 @@ sgs.LoadTranslationTable{
 	
 	["CHAR_ZAKU"] = "夏亚渣古Ⅱ",
 	["#CHAR_ZAKU"] = "赤色彗星",
-	["~CHAR_ZAKU"] = "",
+	["~CHAR_ZAKU"] = "またしても私の前に立ちはだかるか、ガンダム!",
 	["designer:CHAR_ZAKU"] = "高达杀制作组",
 	["cv:CHAR_ZAKU"] = "夏亚·阿兹纳布尔",
 	["illustrator:CHAR_ZAKU"] = "wch5621628",
 	["huixing"] = "彗星",
 	[":huixing"] = "摸牌阶段摸牌后，你可以亮出牌堆顶的一张牌，若为<font color='red'><b>红色</b></font>，你获得之；当你发动<b>“夏亚”</b>将<font color='red'><b>红色</b></font>【杀】当【闪】使用或打出后，你可以摸一张牌并视为对对方使用此【杀】。",
+	["$huixing1"] = "戦いは非情さ。そのくらいのことは考えてある",
+	["$huixing2"] = "見せてもらおうか。連邦軍のMSの性能とやらを!",
+	["$huixing3"] = "コックピットを潰す!",
+	["$huixing4"] = "この程度の間合いなら…",
 	
 	["#ZETA"] = "星之继承者",
 	["~ZETA"] = "やったのか!?光が…広がってゆく…",
