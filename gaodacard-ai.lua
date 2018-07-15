@@ -58,4 +58,16 @@ end
 sgs.ai_use_priority.FinalVent = sgs.ai_use_priority.FireAttack + 0.1
 sgs.ai_use_value.FinalVent = sgs.ai_use_value.FireAttack + 0.1
 sgs.ai_keep_value.FinalVent = sgs.ai_keep_value.FireAttack + 0.1
-sgs.dynamic_value.benefit.FinalVent = true
+
+sgs.ai_nullification.FinalVent = function(self, card, from, to, positive)
+	if not positive then
+		if self:isEnemy(to) then
+			return true
+		end
+	else
+		if self:isFriend(to) then
+			return true
+		end
+	end
+	return
+end
