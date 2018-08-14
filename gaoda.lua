@@ -13,7 +13,7 @@ map_attack = true --地图炮系统（5~7人场：1人持有|8~9人场：2人持
 burst_system = true --爆发系统（每造成1点伤害后，获得1点爆发能量。每受到1点伤害后，获得2点爆发能量。若爆发能量达到9点，爆发能量不再增加，并随机获得一种爆发状态。出牌阶段，你可以进入相应的爆发状态，直到爆发能量耗尽。）
 show_winrate = true --显示胜率（颜神黑科技基础，在武将一览的高达杀武将第一行前可见）
 g_skin = true --皮肤系统
-lucky_card = true --扭蛋、彩蛋模式（游戏开始时随机选定一张游戏牌，当玩家使用同名同花色同点数的牌时，获得一枚G币并播放妖梦gif）
+lucky_card = true --扭蛋、彩蛋模式（游戏开始时随机选定一张游戏牌，当玩家使用同名同花色同点数的牌时，获得一枚G币并播放妖梦gif）、每日奖励
 zy_system = false --昼夜系统（60%常|20%昼：判定牌♣视为♦|20%夜：判定牌♥视为♠）
 zabing_system = true --支援机系统（详阅zabing.lua）
 
@@ -22,8 +22,9 @@ function file_exists(name)
 	if f ~= nil then io.close(f) return true else return false end
 end
 
-gdata = "g.lua"
-g2data = "g2.lua"
+gdata = "g.lua" --胜率
+g2data = "g2.lua" --金币、皮肤、支援机
+g3data = "g3.lua" --每日奖励
 
 do
     require  "lua.config"
@@ -503,7 +504,7 @@ generalName2BGM = function(name)
 		{"BGM27", "SF"},
 		{"BGM28", "LUPUS", "REX"},
 		{"BGM29", "STRIKE_NOIR"},
-		{"BGM"..math.random(30, 31), "G_SELF"},
+		{"BGM"..math.random(30, 31), "G_SELF", "G_SELF_PP"},
 		
 		{"BGM99", "itemshow"}
 	}
@@ -1199,6 +1200,8 @@ end
 --【皮肤系统】（续页底）
 if g_skin then --BUG:hide some skins for KrAu!
 	g_skin_cp = {
+		{"CHAR_ZAKU", "CHAR_ZAKU_skin1", "CHAR_ZAKU_skin2"},
+		{"SINANJU", "SINANJU_skin1", "SINANJU_skin2"},
 		{"FA_UNICORN", "FA_UNICORN_skin1"},
 		{"FREEDOM", "FREEDOM_skin1", "FREEDOM_skin2"},
 		{"JUSTICE", "JUSTICE_skin1", "JUSTICE_skin2"},
@@ -1207,6 +1210,7 @@ if g_skin then --BUG:hide some skins for KrAu!
 		{"SF", "SF_skin1", "SF_skin2"},
 		{"EXIA_R", "EXIA_R_skin1"},
 		{"BUILD_BURNING", "BUILD_BURNING_skin1"},
+		{"G_SELF_PP", "G_SELF_PP_skin1"},
 		{"BARBATOS", "BARBATOS_skin1"},
 		{"LUPUS", "LUPUS_skin1"},
 		{"REX", "REX_skin1"}
@@ -1227,7 +1231,7 @@ skincard = sgs.CreateSkillCard{
 		for _,cp in ipairs(g_skin_cp) do
 			if string.find(name, cp[1]) then
 				for i,c in ipairs(cp) do
-					if i == 1 or table.contains(avail_list, c) then
+					if i == 1 or table.contains(avail_list, c) or source:getState() == "robot" then
 						table.insert(convert, c)
 					end
 				end
@@ -1259,7 +1263,7 @@ skincard = sgs.CreateSkillCard{
 			for _,cp2 in ipairs(g_skin_cp) do
 				if string.find(name2, cp2[1]) then
 					for i,c in ipairs(cp2) do
-						if i == 1 or table.contains(avail_list, c) then
+						if i == 1 or table.contains(avail_list, c) or source:getState() == "robot" then
 							table.insert(convert2, c)
 						end
 					end
@@ -1381,81 +1385,84 @@ if lucky_card then
 		will_throw = false,
 		handling_method = sgs.Card_MethodNone,
 		about_to_use = function(self, room, use)
-			room:removePlayerMark(use.from, "@coin")
-			saveItem("Coin", -1)
-			room:setEmotion(use.from, "capsule")
-			room:broadcastSkillInvoke("gdsbgm", 7)
-			room:getThread():delay(1000)
-			
-			--皮肤：25% 杂兵使用权*1：35% 杂兵使用权*3：25% 金币回赠*2：15% 限定机体：0%
-			local ran = math.random(1, 100)
-			
-			if ran <= 25 then
-				local sk = {}
-				for _,s in ipairs(g_skin_cp) do
-					for _,t in ipairs(s) do
-						if string.find(t, "_skin") then
-							table.insert(sk, t)
+			local x = tonumber(self:getUserString())
+			for i = 1, x, 1 do
+				room:removePlayerMark(use.from, "@coin")
+				saveItem("Coin", -1)
+				room:setEmotion(use.from, "capsule")
+				room:broadcastSkillInvoke("gdsbgm", 7)
+				room:getThread():delay(1000)
+				
+				--皮肤：25% 杂兵使用权*1：35% 杂兵使用权*3：25% 金币回赠*2：15% 限定机体：0%
+				local ran = math.random(1, 100)
+				
+				if ran <= 25 then
+					local sk = {}
+					for _,s in ipairs(g_skin_cp) do
+						for _,t in ipairs(s) do
+							if string.find(t, "_skin") then
+								table.insert(sk, t)
+							end
 						end
 					end
-				end
-								
-				local item = sk[math.random(#sk)]
-				
-				room:broadcastSkillInvoke("gdsbgm", 10)
-				room:getThread():delay(2700)
-				room:broadcastSkillInvoke("gdsbgm", 11)
-				room:broadcastSkillInvoke("gdsbgm", 12)
-				
-				room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500) --BUG:repeated item
-				local n = tonumber(string.sub(item, string.len(item)))
-				local log = sgs.LogMessage()
-				log.type = "#capsule_sk"
-				log.arg = item
-				log.arg2 = string.rep("I", n)
-				room:sendLog(log)
-				local repeated = saveItem(item, 1)
-				if repeated then
-					room:setEmotion(use.from, "yomeng")
-					room:broadcastSkillInvoke("gdsbgm", 7)
+									
+					local item = sk[math.random(#sk)]
+					
+					room:broadcastSkillInvoke("gdsbgm", 10)
+					room:getThread():delay(2700)
+					room:broadcastSkillInvoke("gdsbgm", 11)
+					room:broadcastSkillInvoke("gdsbgm", 12)
+					
+					room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500) --BUG:repeated item
+					local n = tonumber(string.sub(item, string.len(item)))
 					local log = sgs.LogMessage()
-					log.type = "#capsule_re"
-					log.arg = 1
+					log.type = "#capsule_sk"
+					log.arg = item
+					log.arg2 = string.rep("I", n)
 					room:sendLog(log)
-					room:addPlayerMark(use.from, "@coin", 1)
-					saveItem("Coin", 1)
+					local repeated = saveItem(item, 1)
+					if repeated then
+						room:setEmotion(use.from, "yomeng")
+						room:broadcastSkillInvoke("gdsbgm", 7)
+						local log = sgs.LogMessage()
+						log.type = "#capsule_re"
+						log.arg = 1
+						room:sendLog(log)
+						room:addPlayerMark(use.from, "@coin", 1)
+						saveItem("Coin", 1)
+					end
+				elseif ran <= 85 then
+					local zb = zb_list
+					
+					local item = zb[math.random(#zb)]
+					
+					room:broadcastSkillInvoke("gdsbgm", 9)
+					room:getThread():delay(2700)
+					room:broadcastSkillInvoke("gdsbgm", 12)
+					
+					room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500)
+					local n = 1
+					if ran >= 61 then
+						n = 3
+					end
+					local log = sgs.LogMessage()
+					log.type = "#capsule_zb"
+					log.arg = item
+					log.arg2 = n
+					room:sendLog(log)
+					saveItem(item, n)
+				else
+					room:broadcastSkillInvoke("gdsbgm", 9)
+					room:getThread():delay(2700)
+					room:setEmotion(use.from, "yomeng")
+					room:broadcastSkillInvoke("gdsbgm", 8)
+					local log = sgs.LogMessage()
+					log.type = "#capsule_c"
+					log.arg = 2
+					room:sendLog(log)
+					room:addPlayerMark(use.from, "@coin", 2)
+					saveItem("Coin", 2)
 				end
-			elseif ran <= 85 then
-				local zb = zb_list
-				
-				local item = zb[math.random(#zb)]
-				
-				room:broadcastSkillInvoke("gdsbgm", 9)
-				room:getThread():delay(2700)
-				room:broadcastSkillInvoke("gdsbgm", 12)
-				
-				room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500)
-				local n = 1
-				if ran >= 61 then
-					n = 3
-				end
-				local log = sgs.LogMessage()
-				log.type = "#capsule_zb"
-				log.arg = item
-				log.arg2 = n
-				room:sendLog(log)
-				saveItem(item, n)
-			else
-				room:broadcastSkillInvoke("gdsbgm", 9)
-				room:getThread():delay(2700)
-				room:setEmotion(use.from, "yomeng")
-				room:broadcastSkillInvoke("gdsbgm", 8)
-				local log = sgs.LogMessage()
-				log.type = "#capsule_c"
-				log.arg = 2
-				room:sendLog(log)
-				room:addPlayerMark(use.from, "@coin", 2)
-				saveItem("Coin", 2)
 			end
 		end
 	}
@@ -1463,7 +1470,9 @@ if lucky_card then
 	itemnumvs = sgs.CreateZeroCardViewAsSkill{
 		name = "itemnum",
 		view_as = function(self)
-			return itemnumcard:clone()
+			local acard = itemnumcard:clone()
+			acard:setUserString("1")
+			return acard
 		end,
 		enabled_at_play = function(self, player)
 			return player:getMark("@coin") > 0
@@ -1511,6 +1520,23 @@ if lucky_card then
 	}
 	
 	itemshow:addSkill(itemnum)
+	
+	--10连抽
+	itemnum_ten = sgs.CreateZeroCardViewAsSkill{
+		name = "itemnum_ten",
+		view_as = function(self)
+			local acard = itemnumcard:clone()
+			acard:setUserString("10")
+			return acard
+		end,
+		enabled_at_play = function(self, player)
+			return player:getMark("@coin") > 0
+		end
+	}
+	
+	local skills = sgs.SkillList()
+	if not sgs.Sanguosha:getSkill("itemnum_ten") then skills:append(itemnum_ten) end
+	sgs.Sanguosha:addSkills(skills)
 end
 
 saveItem = function(item_type, add_num)
@@ -1630,6 +1656,44 @@ luckyrecord = sgs.CreateTriggerSkill{
 		end
 	end
 }
+
+--【每日奖励】
+--60%：G币×1	40%：G币×5
+if lucky_card then
+	local DailyCoin = function()
+		math.random()
+		if math.random(1, 100) <= 60 then
+			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n恭喜你获得 1 枚G币！")
+			saveItem("Coin", 1)
+		else
+			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n你今天的运气真好！\n恭喜你获得 5 枚G币！")
+			saveItem("Coin", 5)
+		end
+	end
+	
+	local today =  os.date("%y")..os.date("%m")..os.date("%d")
+	local file = io.open(g3data, "r")
+	if file == nil then
+		local file2 = io.open(g3data, "w")
+		file2:write(math.pow(tonumber(today), 2))
+		file2:close()
+		DailyCoin()
+	else
+		local _date = file:read()
+		file:close()
+		if _date == "" or tonumber(_date) == nil or tonumber(_date) < 0 or math.pow(tonumber(_date), 0.5) ~= math.floor(math.pow(tonumber(_date), 0.5)) then
+			local file2 = io.open(g3data, "w")
+			file2:write(math.pow(tonumber(today), 2))
+			file2:close()
+			sgs.Alert("温馨提示：\n文明游戏，别改存档哦～")
+		elseif tonumber(_date) ~= math.pow(tonumber(today), 2) then
+			local file2 = io.open(g3data, "w")
+			file2:write(math.pow(tonumber(today), 2))
+			file2:close()
+			DailyCoin()
+		end
+	end
+end
 
 --【昼夜系统】
 zyrecord = sgs.CreateTriggerSkill{
@@ -2729,31 +2793,33 @@ UNICORN = sgs.General(extension, "UNICORN", "EFSF", 4, true, false)
 
 shenshou = sgs.CreateTriggerSkill{
 	name = "shenshou",
-	events = {sgs.TargetConfirmed},
+	events = {sgs.TargetSpecified},
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local use = data:toCardUse()
-	if player:objectName() == use.from:objectName() and use.card:isKindOf("Slash") and use.card:isRed() and
-	room:askForSkillInvoke(player, self:objectName(), data) then
-	    room:broadcastSkillInvoke("shenshou")
-		local jink_table = sgs.QList2Table(player:getTag("Jink_" .. use.card:toString()):toIntList())
-		local index = 1
-		for _, p in sgs.qlist(use.to) do
-			local acard = room:askForCard(p, ".|red|.|.", "@@shenshou:"..player:getGeneralName(), data, sgs.Card_MethodNone, player, false, self:objectName(), true)
-			if acard then
-				player:obtainCard(acard)
-			    return false
-			else
-				jink_table[index] = 0
+		if use.card:isKindOf("Slash") and use.card:isRed() then
+			local jink_table = sgs.QList2Table(player:getTag("Jink_" .. use.card:toString()):toIntList())
+			local index = 1
+			for _, p in sgs.qlist(use.to) do
+				if not player:isAlive() then break end
+				local _data = sgs.QVariant()
+				_data:setValue(p)
+				if room:askForSkillInvoke(player, self:objectName(), _data) then
+					room:broadcastSkillInvoke("shenshou")
+					local acard = room:askForCard(p, ".|red|.|.", "@@shenshou:"..player:getGeneralName(), data, sgs.Card_MethodNone, player, false, self:objectName(), true)
+					if acard then
+						player:obtainCard(acard)
+					else
+						jink_table[index] = 0
+					end
+				end
+				index = index + 1
 			end
-			index = index + 1
+			local jink_data = sgs.QVariant()
+			jink_data:setValue(Table2IntList(jink_table))
+			player:setTag("Jink_" .. use.card:toString(), jink_data)
 		end
-		local jink_data = sgs.QVariant()
-		jink_data:setValue(Table2IntList(jink_table))
-		player:setTag("Jink_" .. use.card:toString(), jink_data)
-		return false
 	end
-	end,
 }
 
 NTD = sgs.CreateTriggerSkill
@@ -5719,7 +5785,7 @@ shuanglian = sgs.CreateTriggerSkill{
 					end
 				end
 				local target = room:askForPlayerChosen(player, tos, "shuanglian", "@@shuanglianjinktar", false, true)
-				local acard = room:askForCard(target, "jink", "@@shuanglianjinkres", data, sgs.Card_MethodResponse, target, false, self:objectName(), false)
+				local acard = room:askForCard(target, "jink", "@@shuanglianjinkres", data, sgs.Card_MethodResponse, player, false, self:objectName(), false)
 				if target then
 					if not acard then
 						local damage = sgs.DamageStruct()
@@ -8748,7 +8814,7 @@ jiqicard = sgs.CreateSkillCard{
 	end,
 	on_effect = function(self, effect)
 		local room = effect.from:getRoom()
-		if not room:askForCard(effect.to, "jink", "@fengong", sgs.QVariant(), sgs.Card_MethodResponse, nil, false, self:objectName(), false) then
+		if not room:askForCard(effect.to, "jink", "@fengong", sgs.QVariant(), sgs.Card_MethodResponse, effect.from, false, self:objectName(), false) then
 			room:damage(sgs.DamageStruct(self:objectName(), effect.from, effect.to))
 		end
 	end
@@ -9349,7 +9415,7 @@ fengongcard = sgs.CreateSkillCard{
 	end,
 	on_effect = function(self, effect)
 		local room = effect.from:getRoom()
-		local card = room:askForCard(effect.to, "jink", "@fengong", sgs.QVariant(), sgs.Card_MethodResponse, nil, false, self:objectName(), false)
+		local card = room:askForCard(effect.to, "jink", "@fengong", sgs.QVariant(), sgs.Card_MethodResponse, effect.from, false, self:objectName(), false)
 		if not card then
 			room:damage(sgs.DamageStruct(self:objectName(), effect.from, effect.to))
 		end
@@ -10696,6 +10762,8 @@ hongbaocard = sgs.CreateSkillCard{
 	target_fixed = true,
 	will_throw = true,
 	on_use = function(self, room, source, targets)
+		room:setEmotion(source, "hongbao")
+		room:getThread():delay(6000)
 		room:removePlayerMark(source, "@hongbao")
 		source:gainMark("@hongbao_burst")
 		room:loseMaxHp(source)
@@ -10765,6 +10833,8 @@ shengfeng = sgs.CreateTriggerSkill{
 				room:addPlayerHistory(player, "shengfeng")
 				local ids = table.concat(sgs.QList2Table(use.card:getSubcards()), "+")
 				room:setPlayerProperty(player, "shengfeng", sgs.QVariant(ids))
+				room:setEmotion(player, "shengfeng")
+				room:getThread():delay(2000)
 			else
 				room:setTag("shengfeng", sgs.QVariant())
 			end
@@ -10842,7 +10912,7 @@ huansevs = sgs.CreateOneCardViewAsSkill{
 	enabled_at_play = function(self, player)
 		return false
 	end,
-	enabled_at_response=function(self, player, pattern) 
+	enabled_at_response = function(self, player, pattern) 
 		return player:getMark("G_SELF_SPACE") > 0 and (pattern == "jink" or pattern == "nullification")
 	end,
 	enabled_at_nullification = function(self, player)
@@ -10961,7 +11031,7 @@ G_SELF_TRICKY_skill = sgs.CreateTriggerSkill{
 		acard:setSkillName(self:objectName())
 		if player:getMark("G_SELF_TRICKY") > 0 and damage.from and damage.from:isAlive() and not player:isProhibited(damage.from, acard)
 			and acard:targetFilter(sgs.PlayerList(), damage.from, player) and not player:isKongcheng() then
-			local card = room:askForCard(player, ".|red|.|hand", "#G_SELF_TRICKY_skill-prompt", data, sgs.Card_MethodNone, damage.from, false, self:objectName(), false)
+			local card = room:askForCard(player, ".|red|.|hand", "#G_SELF_TRICKY_skill-prompt", data, sgs.Card_MethodNone, nil, false, self:objectName(), false)
 			if card then
 				acard:addSubcard(card)
 				room:broadcastSkillInvoke("huanse", 6)
@@ -11071,6 +11141,119 @@ extension:insertRelatedSkills("huanse", "#G_SELF_ASS_skill")
 extension:insertRelatedSkills("huanse", "#G_SELF_ASS_skill2")
 extension:insertRelatedSkills("huanse", "#G_SELF_REF_skill")
 extension:insertRelatedSkills("huanse", "#G_SELF_HT_skill")
+
+G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
+
+huancaivs = sgs.CreateOneCardViewAsSkill{
+	name = "huancai",
+	response_or_use = true,
+	view_filter = function(self, card)
+		if sgs.Sanguosha:getCurrentCardUseReason() == sgs.CardUseStruct_CARD_USE_REASON_PLAY then
+			return true
+		else
+			local pattern = sgs.Sanguosha:getCurrentCardUsePattern()
+			if pattern == "jink" then
+				return card:isKindOf("Nullification")
+			end
+			return card:isKindOf("Jink")
+		end
+		return false
+	end,
+	view_as = function(self, card)
+		if sgs.Sanguosha:getCurrentCardUseReason() == sgs.CardUseStruct_CARD_USE_REASON_PLAY then
+			local ncard = sgs.Sanguosha:cloneCard("ex_nihilo", card:getSuit(), card:getNumber())
+			ncard:addSubcard(card)
+			ncard:setSkillName(self:objectName())
+			return ncard
+		else
+			if card:isKindOf("Jink") then
+				local ncard = sgs.Sanguosha:cloneCard("nullification", card:getSuit(), card:getNumber())
+				ncard:addSubcard(card)
+				ncard:setSkillName("G_SELF_SPACE_skill")
+				return ncard
+			else
+				local ncard = sgs.Sanguosha:cloneCard("jink", card:getSuit(), card:getNumber())
+				ncard:addSubcard(card)
+				ncard:setSkillName("G_SELF_SPACE_skill")
+				return ncard
+			end
+		end
+	end,
+	enabled_at_play = function(self, player)
+		return not player:hasUsed("huancai")
+	end,
+	enabled_at_response = function(self, player, pattern) 
+		return player:getMark("G_SELF_SPACE") > 0 and (pattern == "jink" or pattern == "nullification")
+	end,
+	enabled_at_nullification = function(self, player)
+		return player:getMark("G_SELF_SPACE") > 0
+	end
+}
+
+huancai = sgs.CreateTriggerSkill{
+	name = "huancai",
+	events = {sgs.CardUsed, sgs.TurnStart},
+	view_as_skill = huancaivs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if event == sgs.TurnStart then
+			for _,form in ipairs{"G_SELF", "G_SELF_SPACE", "G_SELF_TRICKY", "G_SELF_ASS", "G_SELF_REF", "G_SELF_HT"} do
+				if player:getMark(form) > 0 then
+					room:setPlayerMark(player, form, 0)
+					room:setPlayerMark(player, "@"..form.."_PP", 0)
+				end
+			end
+		else
+			local use = data:toCardUse()
+			if use.card and use.card:isKindOf("ExNihilo") and use.card:getSkillName() == self:objectName() then
+				local card = sgs.Sanguosha:getCard(use.card:getSubcards():first())
+				room:addPlayerHistory(player, "huancai")
+				local form = ""
+				if card:isKindOf("BasicCard") then
+					form = "G_SELF"
+					room:broadcastSkillInvoke("huanse", 1)
+				elseif card:isNDTrick() then
+					form = "G_SELF_SPACE"
+					room:broadcastSkillInvoke("huanse", 3)
+				elseif card:isKindOf("DelayedTrick") then
+					form = "G_SELF_TRICKY"
+					room:broadcastSkillInvoke("huanse", 5)
+				elseif card:isKindOf("Weapon") then
+					form = "G_SELF_ASS"
+					room:broadcastSkillInvoke("huanse", 7)
+				elseif card:isKindOf("Armor") or card:isKindOf("Treasure") then
+					form = "G_SELF_REF"
+					room:broadcastSkillInvoke("huanse", 9)
+				else
+					form = "G_SELF_HT"
+					room:broadcastSkillInvoke("huanse", 11)
+				end
+				room:setPlayerMark(player, form, 1)
+				room:setPlayerMark(player, "@"..form.."_PP", 1)
+				local log = sgs.LogMessage()
+				log.type = "#huanse_"..form
+				log.from = player
+				room:sendLog(log)
+			end
+		end
+	end
+}
+
+G_SELF_PP:addSkill(huancai)
+G_SELF_PP:addSkill(G_SELF_skill)
+G_SELF_PP:addSkill(G_SELF_SPACE_skill)
+G_SELF_PP:addSkill(G_SELF_TRICKY_skill)
+G_SELF_PP:addSkill(G_SELF_ASS_skill)
+G_SELF_PP:addSkill(G_SELF_ASS_skill2)
+G_SELF_PP:addSkill(G_SELF_REF_skill)
+G_SELF_PP:addSkill(G_SELF_HT_skill)
+extension:insertRelatedSkills("huancai", "#G_SELF_skill")
+extension:insertRelatedSkills("huancai", "#G_SELF_SPACE_skill")
+extension:insertRelatedSkills("huancai", "#G_SELF_TRICKY_skill")
+extension:insertRelatedSkills("huancai", "#G_SELF_ASS_skill")
+extension:insertRelatedSkills("huancai", "#G_SELF_ASS_skill2")
+extension:insertRelatedSkills("huancai", "#G_SELF_REF_skill")
+extension:insertRelatedSkills("huancai", "#G_SELF_HT_skill")
 
 BARBATOS = sgs.General(extension, "BARBATOS", "TEKKADAN", 4, true, false)
 
@@ -12725,6 +12908,7 @@ sgs.LoadTranslationTable{
 	["@hongbao_burst"] = "燃焰轰爆",
 	["shengfeng"] = "圣凤",
 	[":shengfeng"] = "出牌阶段限一次，你可以将至多四张不同花色的<b>“拳法”</b>当【火攻】使用，若目标角色展示的花色与当中的<b>“拳法”</b>相同，你对其造成1点火焰伤害。",
+	["$hongbao"] = "（燃炎轰爆）",
 	["$shengfeng"] = "（凤凰鸣叫）",
 	
 	["G_SELF"] = "G-SELF",
@@ -12751,12 +12935,12 @@ sgs.LoadTranslationTable{
 	["illustrator:G_SELF"] = "wch5621628",
 	["huanse"] = "幻色",
 	[":huanse"] = "当你于出牌阶段使用第一张牌时，你根据牌的类别获得以下效果，直到你的下回合开始前。\
-<font color='#4f9cf8'>❶</font>基本牌：当你使用或打出【闪】时，你可以摸一张牌。<font color='#4f9cf8'>&lt;大气圈&gt;</font>\
-<font color='#34c8e7'>❷</font>通常锦囊牌：你可以将一张【闪】当【无懈可击】、【无懈可击】当【闪】使用或打出。<font color='#34c8e7'>&lt;宇宙&gt;</font>\
-<font color='#f46d89'>❸</font>延时锦囊牌：当你受到伤害后，你可以将一张<b><font color='red'>红色</font></b>手牌当【乐不思蜀】对伤害来源使用。<font color='#f46d89'>&lt;机巧&gt;</font>\
-<font color='red'>❹</font>武器：你使用的【杀】可额外指定一个目标；你使用<b><font color='red'>红色</font></b>牌造成的伤害+1。<font color='red'>&lt;突击&gt;</font>\
-<font color='#4e3bc5'>❺</font>防具/宝物：当你成为【杀】的目标后，你可以弃置一张相同花色的手牌，然后获得此【杀】且对你无效。<font color='#4e3bc5'>&lt;反射&gt;</font>\
-<font color='#469244'>❻</font>坐骑： 当你使用【杀】指定一名距离1的目标后，你可以弃置其一张牌并令此【杀】不可被【闪】响应。<font color='#469244'>&lt;高扭力&gt;</font>",
+<font color='#4f9cf8'>❶基本牌</font>：当你使用或打出【闪】时，你可以摸一张牌。<font color='#4f9cf8'>&lt;大气圈&gt;</font>\
+<font color='#34c8e7'>❷通常锦囊牌</font>：你可以将一张【闪】当【无懈可击】、【无懈可击】当【闪】使用或打出。<font color='#34c8e7'>&lt;宇宙&gt;</font>\
+<font color='#f46d89'>❸延时锦囊牌</font>：当你受到伤害后，你可以将一张<b><font color='red'>红色</font></b>手牌当【乐不思蜀】对伤害来源使用。<font color='#f46d89'>&lt;机巧&gt;</font>\
+<font color='red'>❹武器</font>：你使用的【杀】可额外指定一个目标；你使用<b><font color='red'>红色</font></b>牌造成的伤害+1。<font color='red'>&lt;突击&gt;</font>\
+<font color='#4e3bc5'>❺防具/宝物</font>：当你成为【杀】的目标后，你可以弃置一张相同花色的手牌，然后获得此【杀】且对你无效。<font color='#4e3bc5'>&lt;反射&gt;</font>\
+<font color='#469244'>❻坐骑</font>： 当你使用【杀】指定一名距离1的目标后，你可以弃置其一张牌并令此【杀】不可被【闪】响应。<font color='#469244'>&lt;高扭力&gt;</font>",
 	["#huanse_G_SELF"] = "%from 装上了<b><font color='#4f9cf8'>&lt;大气圈&gt;</font></b>背包",
 	["#huanse_G_SELF_SPACE"] = "%from 装上了<b><font color='#34c8e7'>&lt;宇宙&gt;</font></b>背包",
 	["#huanse_G_SELF_TRICKY"] = "%from 装上了<b><font color='#f46d89'>&lt;机巧&gt;</font></b>背包",
@@ -12775,6 +12959,27 @@ sgs.LoadTranslationTable{
 	["$huanse10"] = "敵のビームをエネルギーにしてくれている!?",
 	["$huanse11"] = "高トルクパック!",
 	["$huanse12"] = "真っ向勝負だ!",
+	
+	["G_SELF_PP"] = "完美G-SELF",
+	["@G_SELF_PP"] = "大气圈",
+	["@G_SELF_SPACE_PP"] = "宇宙",
+	["@G_SELF_TRICKY_PP"] = "机巧",
+	["@G_SELF_ASS_PP"] = "突击",
+	["@G_SELF_REF_PP"] = "反射",
+	["@G_SELF_HT_PP"] = "高扭力",
+	["#G_SELF_PP"] = "新人类之音",
+	["~G_SELF_PP"] = "G-セルフは…僕とアイーダさんの…",
+	["designer:G_SELF_PP"] = "高达杀制作组",
+	["cv:G_SELF_PP"] = "贝尔利·谢纳姆",
+	["illustrator:G_SELF_PP"] = "wch5621628",
+	["huancai"] = "幻彩",
+	[":huancai"] = "出牌阶段限一次，你可以将一张牌当【无中生有】使用，根据转化牌的类别获得以下效果，直到你的下回合开始前。\
+<font color='#4f9cf8'>❶基本牌</font>：当你使用或打出【闪】时，你可以摸一张牌。<font color='#4f9cf8'>&lt;大气圈&gt;</font>\
+<font color='#34c8e7'>❷通常锦囊牌</font>：你可以将一张【闪】当【无懈可击】、【无懈可击】当【闪】使用或打出。<font color='#34c8e7'>&lt;宇宙&gt;</font>\
+<font color='#f46d89'>❸延时锦囊牌</font>：当你受到伤害后，你可以将一张<b><font color='red'>红色</font></b>手牌当【乐不思蜀】对伤害来源使用。<font color='#f46d89'>&lt;机巧&gt;</font>\
+<font color='red'>❹武器</font>：你使用的【杀】可额外指定一个目标；你使用<b><font color='red'>红色</font></b>牌造成的伤害+1。<font color='red'>&lt;突击&gt;</font>\
+<font color='#4e3bc5'>❺防具/宝物</font>：当你成为【杀】的目标后，你可以弃置一张相同花色的手牌，然后获得此【杀】且对你无效。<font color='#4e3bc5'>&lt;反射&gt;</font>\
+<font color='#469244'>❻坐骑</font>： 当你使用【杀】指定一名距离1的目标后，你可以弃置其一张牌并令此【杀】不可被【闪】响应。<font color='#469244'>&lt;高扭力&gt;</font>",
 	
 	["BARBATOS"] = "巴巴托斯",
 	["#BARBATOS"] = "铁血的孤儿",
@@ -12977,6 +13182,10 @@ end
 
 --【皮肤系统】（置于页底以确保武将名翻译成功）
 if g_skin then
+	CHAR_ZAKU_skin1 = sgs.General(extension, "CHAR_ZAKU_skin1", "ZEON", 4, true, true, true)
+	CHAR_ZAKU_skin2 = sgs.General(extension, "CHAR_ZAKU_skin2", "ZEON", 4, true, true, true)
+	SINANJU_skin1 = sgs.General(extension, "SINANJU_skin1", "SLEEVE", 4, true, true, true)
+	SINANJU_skin2 = sgs.General(extension, "SINANJU_skin2", "SLEEVE", 4, true, true, true)
 	FA_UNICORN_skin1 = sgs.General(extension, "FA_UNICORN_skin1", "EFSF", 3, true, true, true)
 	FREEDOM_skin1 = sgs.General(extension, "FREEDOM_skin1", "ORB", 3, true, true, true)
 	FREEDOM_skin2 = sgs.General(extension, "FREEDOM_skin2", "ORB", 3, true, true, true)
@@ -12989,6 +13198,7 @@ if g_skin then
 	SF_skin2 = sgs.General(extension, "SF_skin2", "ORB", 4, true, true, true)
 	EXIA_R_skin1 = sgs.General(extension, "EXIA_R_skin1", "CB", 4, true, true, true)
 	BUILD_BURNING_skin1 = sgs.General(extension, "BUILD_BURNING_skin1", "OTHERS", 4, true, true, true)
+	G_SELF_PP_skin1 = sgs.General(extension, "G_SELF_PP_skin1", "OTHERS", 4, true, true, true)
 	BARBATOS_skin1 = sgs.General(extension, "BARBATOS_skin1", "TEKKADAN", 4, true, true, true)
 	LUPUS_skin1 = sgs.General(extension, "LUPUS_skin1", "TEKKADAN", 4, true, true, true)
 	REX_skin1 = sgs.General(extension, "REX_skin1", "TEKKADAN", 4, true, true, true)
@@ -13057,6 +13267,7 @@ if lucky_card then
 		["cv:itemshow"] = "贴吧：高达杀s吧",
 		["illustrator:itemshow"] = "QQ群：565837324",
 		["itemnum"] = "扭蛋",
-		[":itemnum"] = g2_property
+		[":itemnum"] = g2_property,
+		["itemnum_ten"] = "十连抽"
 	}
 end
