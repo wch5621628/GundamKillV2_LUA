@@ -10788,12 +10788,19 @@ BUILD_BURNING:addSkill(tonghua)
 --TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
 
 TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, lucky_card, lucky_card)
-if lucky_card and file_exists(g2data) then
-	require("g2")
-	local f = loadstring("return TRY_BURNING")
-	local times = f()
-	if times > 0 then
-		TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
+if lucky_card then
+	local file = io.open(g2data, "r")
+	local tt = {}
+	if file ~= nil then
+		tt = file:read("*all"):split("\n")
+		file:close()
+	end
+	for _,a in pairs(tt) do
+		local s = a:split("=")
+		if s[1] == "TRY_BURNING" and tonumber(s[2]) > 0 then
+			TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
+			break
+		end
 	end
 end
 
@@ -11193,12 +11200,19 @@ extension:insertRelatedSkills("huanse", "#G_SELF_HT_skill")
 --G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
 
 G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, lucky_card, lucky_card)
-if lucky_card and file_exists(g2data) then
-	require("g2")
-	local f = loadstring("return G_SELF_PP")
-	local times = f()
-	if times > 0 then
-		G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
+if lucky_card then
+	local file = io.open(g2data, "r")
+	local tt = {}
+	if file ~= nil then
+		tt = file:read("*all"):split("\n")
+		file:close()
+	end
+	for _,a in pairs(tt) do
+		local s = a:split("=")
+		if s[1] == "G_SELF_PP" and tonumber(s[2]) > 0 then
+			G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
+			break
+		end
 	end
 end
 
