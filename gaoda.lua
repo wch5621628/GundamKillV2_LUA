@@ -1375,6 +1375,8 @@ skinrecord = sgs.CreateTriggerSkill{
 }
 
 --【扭蛋、彩蛋模式】（续页底）
+unlock_list = {"TRY_BURNING", "G_SELF_PP"} --扭蛋解禁机体
+
 if lucky_card then
 	itemshow = sgs.General(extension, "itemshow", "", 0, true, true, false)
 	itemshow:setGender(sgs.General_Sexless)
@@ -1393,7 +1395,10 @@ if lucky_card then
 				room:broadcastSkillInvoke("gdsbgm", 7)
 				room:getThread():delay(1000)
 				
-				--皮肤：25% 杂兵使用权*1：35% 杂兵使用权*3：25% 金币回赠*2：15% 限定机体：0%
+				--皮肤/重复皮肤的金币回赠*1：25%
+				--杂兵使用权*1：35%
+				--杂兵使用权*3：25%
+				--限定机体/抽光机体池后的金币回赠*2：15%
 				local ran = math.random(1, 100)
 				
 				if ran <= 25 then
@@ -1413,7 +1418,7 @@ if lucky_card then
 					room:broadcastSkillInvoke("gdsbgm", 11)
 					room:broadcastSkillInvoke("gdsbgm", 12)
 					
-					room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500) --BUG:repeated item
+					room:doLightbox("image=image/fullskin/generals/full/" .. item .. ".png", 1500)
 					local n = tonumber(string.sub(item, string.len(item)))
 					local log = sgs.LogMessage()
 					log.type = "#capsule_sk"
@@ -1452,16 +1457,39 @@ if lucky_card then
 					room:sendLog(log)
 					saveItem(item, n)
 				else
-					room:broadcastSkillInvoke("gdsbgm", 9)
-					room:getThread():delay(2700)
-					room:setEmotion(use.from, "yomeng")
-					room:broadcastSkillInvoke("gdsbgm", 8)
-					local log = sgs.LogMessage()
-					log.type = "#capsule_c"
-					log.arg = 2
-					room:sendLog(log)
-					room:addPlayerMark(use.from, "@coin", 2)
-					saveItem("Coin", 2)
+					local new_ms = {}
+					for _,un in pairs(unlock_list) do
+						local repeated = saveItem(un, 0)
+						if not repeated then
+							table.insert(new_ms, un)
+						end
+					end
+					if #new_ms == 0 then
+						room:broadcastSkillInvoke("gdsbgm", 9)
+						room:getThread():delay(2700)
+						room:setEmotion(use.from, "yomeng")
+						room:broadcastSkillInvoke("gdsbgm", 8)
+						local log = sgs.LogMessage()
+						log.type = "#capsule_c"
+						log.arg = 2
+						room:sendLog(log)
+						room:addPlayerMark(use.from, "@coin", 2)
+						saveItem("Coin", 2)
+					else
+						local item = new_ms[math.random(#new_ms)]
+					
+						room:broadcastSkillInvoke("gdsbgm", 10)
+						room:getThread():delay(2700)
+						room:broadcastSkillInvoke("gdsbgm", 11)
+						room:broadcastSkillInvoke("gdsbgm", 12)
+						
+						room:doLightbox("image=image/generals/card/" .. item .. ".jpg", 2500)
+						local log = sgs.LogMessage()
+						log.type = "#capsule_un"
+						log.arg = item
+						room:sendLog(log)
+						saveItem(item, 1)
+					end
 				end
 			end
 		end
@@ -1530,7 +1558,7 @@ if lucky_card then
 			return acard
 		end,
 		enabled_at_play = function(self, player)
-			return player:getMark("@coin") > 0
+			return player:getMark("@coin") >= 10
 		end
 	}
 	
@@ -10755,7 +10783,17 @@ tonghua = sgs.CreateTriggerSkill{
 BUILD_BURNING:addSkill(ciyuanbawangliu)
 BUILD_BURNING:addSkill(tonghua)
 
-TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
+--TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
+
+TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, lucky_card, lucky_card)
+if lucky_card and file_exists(g2data) then
+	require("g2")
+	local f = loadstring("return TRY_BURNING")
+	local times = f()
+	if times > 0 then
+		TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
+	end
+end
 
 hongbaocard = sgs.CreateSkillCard{
 	name = "hongbao",
@@ -11142,7 +11180,17 @@ extension:insertRelatedSkills("huanse", "#G_SELF_ASS_skill2")
 extension:insertRelatedSkills("huanse", "#G_SELF_REF_skill")
 extension:insertRelatedSkills("huanse", "#G_SELF_HT_skill")
 
-G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
+--G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
+
+G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, lucky_card, lucky_card)
+if lucky_card and file_exists(g2data) then
+	require("g2")
+	local f = loadstring("return G_SELF_PP")
+	local times = f()
+	if times > 0 then
+		G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
+	end
+end
 
 huancaivs = sgs.CreateOneCardViewAsSkill{
 	name = "huancai",
@@ -11600,6 +11648,7 @@ sgs.LoadTranslationTable{
 	["#capsule_zb"] = "恭喜你获得 %arg 使用权 × %arg2",
 	["#capsule_c"] = "恭喜你获得<img src=\"image/mark/@coin.png\">× %arg 的回赠",
 	["#capsule_re"] = "因获得重复皮肤，你获得<img src=\"image/mark/@coin.png\">× %arg 的回赠",
+	["#capsule_un"] = "★恭喜你解禁机体 %arg ！",
 	["#BGM"] = "%arg",
 	["BGM0"] = "♪ ☆Divine Act -The EXTREME-MAXI BOOST-",
 	["BGM1"] = "♪ FINAL MISSION~QUANTUM BURST",
@@ -13226,6 +13275,9 @@ if lucky_card then
 				end
 			end
 		end
+		for _,un in pairs(unlock_list) do
+			saveItem(un, 0)
+		end
 	end
 	
 	local file = io.open(g2data, "r")
@@ -13235,22 +13287,66 @@ if lucky_card then
 		file:close()
 	end
 
+	local order = function(x)
+		if x:split("=")[1] == "Coin" then
+			return 1
+		elseif string.find(x, "_skin") then
+			return 3
+		elseif table.contains(unlock_list, x:split("=")[1]) then
+			return 4
+		end
+		return 2
+	end
+	local skin_order = function(x)
+		local index = 0
+		for _,cp in ipairs(g_skin_cp) do
+			for _,c in ipairs(cp) do
+				index = index + 1
+				if x:split("=")[1] == c then
+					return index
+				end
+			end
+		end
+		return index
+	end
+	local sort = function(a, b)
+		if string.find(a, "_skin") and string.find(b, "_skin") then
+			return skin_order(a) < skin_order(b)
+		end
+		return order(a) < order(b)
+	end
+	table.sort(tt, sort)
+	
 	local g2_property = "\n<img src=\"image/mark/@coin.png\">G币 = "
 	
 	for i,a in pairs(tt) do
 		local s = a:split("=")
 		if s[1] == "Coin" then
-			g2_property = g2_property .. s[2] .. "\n\n<b>支援机使用权</b>:"
+			g2_property = g2_property .. s[2] .. "\n\n<b>支援机使用权(35%×1, 25%×3)</b>:"
 		elseif string.find(s[1], "_skin") then
 			if string.find(tt[i-1], "_skin") == nil then
-				g2_property = g2_property .. "\n<b>机体皮肤</b>:\n"
+				g2_property = g2_property .. "\n<b>机体皮肤(25%)</b>:\n"
 			end
 			local n = tonumber(string.sub(s[1], string.len(s[1])))
-			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. "皮肤" .. string.rep("I", n) .. ": "
+			local girl = ""
+			if table.contains({"CHAR_ZAKU_skin2", "SINANJU_skin2"}, s[1]) then
+				girl = "(机娘红桃)"
+			end
+			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. "皮肤" .. string.rep("I", n) .. girl .. ": "
 			if s[2] == "0" then
 				g2_property = g2_property .. "<font color='grey'>未获得</font>"
 			else
 				g2_property = g2_property .. "<font color='red'>已获得</font>"
+			end
+		elseif table.contains(unlock_list, s[1]) then
+			if not table.contains(unlock_list, tt[i-1]:split("=")[1]) then
+				g2_property = g2_property .. "\n<b>解禁机体(15%)</b>:\n"
+			end
+			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. ": "
+			if s[2] == "0" then
+				g2_property = g2_property .. "<font color='grey'>未解禁</font>"
+			else
+				g2_property = g2_property .. "<font color='red'>已解禁</font>"
 			end
 		else
 			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. " = " .. s[2]
