@@ -674,6 +674,8 @@ saveRecord = function(player, record_table, record_type) --record_type: 0. +1 ga
 		--变形武将
 		if name == "ZETA_WR" then name = "ZETA" end
 		if name2 == "ZETA_WR" then name2 = "ZETA" end
+		if name == "BLITZ_Y" then name = "BLITZ" end
+		if name2 == "BLITZ_Y" then name2 = "BLITZ" end
 		if name == "REBORNS_GUNDAM" then name = "REBORNS_CANNON" end
 		if name2 == "REBORNS_GUNDAM" then name2 = "REBORNS_CANNON" end
 		
@@ -11089,6 +11091,14 @@ G_SELF_ASS_skill = sgs.CreateTriggerSkill{
 		if player:getMark("G_SELF_ASS") > 0 and damage.card and damage.card:isRed() and not damage.card:isKindOf("SkillCard") then
 			room:sendCompulsoryTriggerLog(player, self:objectName())
 			room:broadcastSkillInvoke("huanse", 8)
+			local log = sgs.LogMessage()
+			log.type = "#tiexuedamage"
+			log.from = player
+			log.to:append(damage.to)
+			log.card_str = damage.card:toString()
+			log.arg = damage.damage
+			log.arg2 = damage.damage + 1
+			room:sendLog(log)
 			damage.damage = damage.damage + 1
 			data:setValue(damage)
 		end
