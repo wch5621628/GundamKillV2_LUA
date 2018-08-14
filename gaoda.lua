@@ -1847,7 +1847,7 @@ zabing = sgs.CreateZeroCardViewAsSkill{
 			local zb = {}
 			for _,item in pairs(tt) do
 				local s = item:split("=")
-				if s[1] ~= "Coin" and string.find(s[1], "_skin") == nil and tonumber(s[2]) > 0 then
+				if table.contains(zb_list, s[1]) and tonumber(s[2]) > 0 then
 					table.insert(zb, s[1])
 				end
 			end
@@ -1881,7 +1881,7 @@ zabing = sgs.CreateZeroCardViewAsSkill{
 			
 			for _,item in pairs(tt) do
 				local s = item:split("=")
-				if s[1] ~= "Coin" and string.find(s[1], "_skin") == nil and tonumber(s[2]) > 0 then
+				if table.contains(zb_list, s[1]) and tonumber(s[2]) > 0 then
 					can_invoke = true
 					break
 				end
