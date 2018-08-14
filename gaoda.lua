@@ -11121,7 +11121,7 @@ G_SELF_REF_skill = sgs.CreateTriggerSkill{
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local use = data:toCardUse()
-		if player:getMark("G_SELF_REF") > 0 and use.card and use.card:getSuit() <= 3 and use.card:isKindOf("Slash") and use.to and use.to:contains(player) then
+		if player:getMark("G_SELF_REF") > 0 and use.card and use.card:getSuit() <= 3 and use.card:isKindOf("Slash") and use.to and use.to:contains(player) and not player:isKongcheng() then
 			local card = room:askForCard(player, ".|"..use.card:getSuitString().."|.|hand", "#G_SELF_REF_skill-prompt", data, sgs.Card_MethodDiscard, nil, false, self:objectName(), false)
 			if card then
 				if canObtain(room, use.card) then
