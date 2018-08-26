@@ -34,7 +34,9 @@ dangqiang = sgs.CreateTriggerSkill
 				end
 			end
 			room:setPlayerMark(player, "@zb_full5_re0", 1)
+			local maxhp = player:getMaxHp()
 			room:changeHero(player, "", false, false, true, false)
+			room:setPlayerProperty(player, "maxhp", sgs.QVariant(maxhp))
 			room:setEmotion(player, "skill_nullify")
 			return true
 		end
@@ -224,7 +226,9 @@ fuxicard = sgs.CreateSkillCard
 			end
 		end
 		room:setPlayerMark(use.from, "@zb_full5_re0", 1)
+		local maxhp = use.from:getMaxHp()
 		room:changeHero(use.from, "", false, false, true, false)
+		room:setPlayerProperty(use.from, "maxhp", sgs.QVariant(maxhp))
 		room:addPlayerMark(use.to:first(), "fuxi")
 	end
 }
