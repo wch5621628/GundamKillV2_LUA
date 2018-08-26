@@ -241,6 +241,17 @@ function resumeHuaShen(player)--BUG Resolver
 	end
 end
 
+function stopHuashen(player)--Assume player does not have skill "huashen"
+	local room = player:getRoom()
+	local json = require ("json")
+	local jsonValue = {
+		4, --sgs.CommandType.S_GAME_EVENT_DETACH_SKILL leads to SOS logo
+		player:objectName(),
+		"poi", --dummy skill
+	}
+	room:doBroadcastNotify(sgs.CommandType.S_COMMAND_LOG_EVENT, json.encode(jsonValue))
+end
+
 --[[function CardList2IntList(cards)
 	local ids = sgs.IntList()
 	for _,card in sgs.qlist(cards) do
@@ -397,8 +408,8 @@ gdsvoice = sgs.CreateTriggerSkill{
 	if event == sgs.AfterDrawInitialCards then
 	    if player:getState() ~= "robot" then
 			room:setPlayerFlag(player, "skip_anime")
-			local choice = {"seshia", "meiling", "yuudachi"}
-			room:setPlayerProperty(player, "emotion", sgs.QVariant(choice[math.random(3)]))
+			local choice = {"seshia", "meiling", "yuudachi", "kizuna_ai"}
+			room:setPlayerProperty(player, "emotion", sgs.QVariant(choice[math.random(4)]))
 			local emotion = player:property("emotion"):toString()
 			if emotion == "seshia" then
 				room:broadcastSkillInvoke("gdsvoice",math.random(1,4))
@@ -406,6 +417,8 @@ gdsvoice = sgs.CreateTriggerSkill{
 			    room:broadcastSkillInvoke("gdsvoice",math.random(5,8))
 			elseif emotion == "yuudachi" then
 			    room:broadcastSkillInvoke("gdsvoice",math.random(9,13))
+			elseif emotion == "kizuna_ai" then
+			    room:broadcastSkillInvoke("gdsvoice",math.random(14,18))
 			end
 			local json = require("json")
 			local jsonValue = {
@@ -429,6 +442,8 @@ gdsvoice = sgs.CreateTriggerSkill{
 			        room:broadcastSkillInvoke("gdsvoice",math.random(5,8))
 				elseif emotion == "yuudachi" then
 					room:broadcastSkillInvoke("gdsvoice",math.random(9,13))
+				elseif emotion == "kizuna_ai" then
+					room:broadcastSkillInvoke("gdsvoice",math.random(14,18))
 			    end
 			    local json = require("json")
 				local jsonValue = {
@@ -454,6 +469,8 @@ gdsvoice = sgs.CreateTriggerSkill{
 			    room:broadcastSkillInvoke("gdsvoice",math.random(6,8))
 			elseif emotion == "yuudachi" then
 				room:broadcastSkillInvoke("gdsvoice",math.random(9,13))
+			elseif emotion == "kizuna_ai" then
+			    room:broadcastSkillInvoke("gdsvoice",math.random(14,18))
 			end
 			local json = require("json")
 			local jsonValue = {
@@ -505,6 +522,7 @@ generalName2BGM = function(name)
 		{"BGM28", "LUPUS", "REX"},
 		{"BGM29", "STRIKE_NOIR"},
 		{"BGM"..math.random(30, 31), "G_SELF", "G_SELF_PP"},
+		{"BGM"..math.random(32, 34), "ASTRAY_RED"},
 		
 		{"BGM99", "itemshow"}
 	}
@@ -611,7 +629,7 @@ if opening then
 	if month == "01" or month == "02" then
 		sgs.Sanguosha:playAudioEffect("audio/system/ny"..math.random(3)..".ogg", false)
 	else
-		sgs.Sanguosha:playAudioEffect("audio/system/op"..math.random(3)..".ogg", false)
+		sgs.Sanguosha:playAudioEffect("audio/system/op"..math.random(4)..".ogg", false)
 	end
 end
 
@@ -1202,6 +1220,7 @@ end
 --【皮肤系统】（续页底）
 if g_skin then --BUG:hide some skins for KrAu!
 	g_skin_cp = {
+		{"GUNDAM", "GUNDAM_skin1"},
 		{"CHAR_ZAKU", "CHAR_ZAKU_skin1", "CHAR_ZAKU_skin2"},
 		{"SINANJU", "SINANJU_skin1", "SINANJU_skin2"},
 		{"FA_UNICORN", "FA_UNICORN_skin1"},
@@ -1212,6 +1231,7 @@ if g_skin then --BUG:hide some skins for KrAu!
 		{"SF", "SF_skin1", "SF_skin2"},
 		{"EXIA_R", "EXIA_R_skin1"},
 		{"BUILD_BURNING", "BUILD_BURNING_skin1"},
+		{"TRY_BURNING", "TRY_BURNING_skin1"},
 		{"G_SELF_PP", "G_SELF_PP_skin1"},
 		{"BARBATOS", "BARBATOS_skin1"},
 		{"LUPUS", "LUPUS_skin1"},
@@ -1243,20 +1263,6 @@ skincard = sgs.CreateSkillCard{
 		local general_name = room:askForGeneral(source, table.concat(convert, "+"))
 		if general_name and table.contains(convert, general_name) then
 			room:setPlayerProperty(source, "general", sgs.QVariant(general_name))
-			
-			--FA独角兽变身处理
-			if source:getMark("quanwu") > 0 and general_name:startsWith("FA_UNICORN") then
-				local json = require ("json")
-				local general = sgs.Sanguosha:getGeneral(general_name)
-				assert(general)
-				local jsonValue = {
-					10,
-					source:objectName(),
-					general:objectName(),
-					"",
-				}
-				room:doBroadcastNotify(sgs.CommandType.S_COMMAND_LOG_EVENT, json.encode(jsonValue))
-			end
 		end
 		
 		if source:getGeneral2() then
@@ -1634,14 +1640,15 @@ luckyrecord = sgs.CreateTriggerSkill{
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		if event == sgs.AfterDrawInitialCards then
-			if player:objectName() ~= room:getAllPlayers(true):first():objectName() or room:getOwner():getMark("@coin") > 0 then return false end
+			if room:getTag("lucky_card_on"):toBool() or room:getOwner():getMark("@coin") > 0 then return false end
+			room:setTag("lucky_card_on", sgs.QVariant(true))
 			local id = sgs.Sanguosha:getRandomCards():first()
 			room:setTag("lucky_card", sgs.QVariant(id))
 			local log = sgs.LogMessage()
 			log.type = "#lucky_card"
 			log.card_str = sgs.Sanguosha:getCard(id):toString()
 			room:sendLog(log)
-		else
+		elseif room:getTag("lucky_card_on"):toBool() then
 			local card = nil
 			if event == sgs.CardUsed then
 				card = data:toCardUse().card
@@ -2282,6 +2289,134 @@ yuanzu = sgs.CreateTriggerSkill{
 GUNDAM:addSkill(yuanzu)
 ]]
 
+shoot = sgs.CreateBasicCard{
+	name = "shoot",
+	class_name = "Shoot",
+	subtype = "attack_card",
+	target_fixed = false,
+	can_recast = false,
+	suit = 0,
+	number = 6,
+	filter = function(self, targets, to_select)
+		return to_select:objectName() ~= sgs.Self:objectName()
+			and #targets < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, sgs.Self, self)
+	end,
+	feasible = function(self, targets)
+		return #targets > 0
+	end,
+	available = function(self, player)
+		return player:usedTimes("Shoot") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, player, self)
+	end,
+	about_to_use = function(self, room, use)
+		self:cardOnUse(room, use)
+	end,
+	on_use = function(self, room, source, targets)
+		local hit_targets, missed_targets = {}, sgs.SPlayerList()
+		math.random()
+		for _, t in ipairs(targets) do
+			if source:inMyAttackRange(t) or math.random(1, 100) <= 70 then
+				room:setEmotion(t, "lockon")
+				table.insert(hit_targets, t)
+			else
+				missed_targets:append(t)
+			end
+		end
+		if not missed_targets:isEmpty() then
+			local log = sgs.LogMessage()
+			log.type = "#shoot_failed"
+			log.from = source
+			log.to = missed_targets
+			log.card_str = self:toString()
+			room:sendLog(log)
+		end
+		for _, t in ipairs(hit_targets) do
+			room:cardEffect(self, source, t)
+		end
+		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
+			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
+			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
+		end
+	end,
+	on_effect = function(self, effect)
+		local source = effect.from
+		local target = effect.to
+		local room = source:getRoom()
+		--room:setEmotion(source, "killer")
+		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
+			local damage = sgs.DamageStruct()
+			damage.from = source
+			damage.to = target
+			damage.damage = 1
+			damage.card = self
+			room:damage(damage)
+		end
+	end
+}
+
+shoot = sgs.CreateBasicCard{--BUG:can't view as
+	name = "shoot",
+	class_name = "Shoot",
+	subtype = "attack_card",
+	target_fixed = false,
+	can_recast = false,
+	suit = 0,
+	number = 6,
+	filter = function(self, targets, to_select)
+		return to_select:objectName() ~= sgs.Self:objectName()
+			and #targets < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, sgs.Self, self)
+	end,
+	feasible = function(self, targets)
+		return #targets > 0
+	end,
+	available = function(self, player)
+		return player:usedTimes("Shoot") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, player, self)
+	end,
+	about_to_use = function(self, room, use)
+		self:cardOnUse(room, use)
+	end,
+	on_use = function(self, room, source, targets)
+		local hit_targets, missed_targets = {}, sgs.SPlayerList()
+		math.random()
+		for _, t in ipairs(targets) do
+			if source:inMyAttackRange(t) or math.random(1, 100) <= 70 then
+				room:setEmotion(t, "lockon")
+				table.insert(hit_targets, t)
+			else
+				missed_targets:append(t)
+			end
+		end
+		if not missed_targets:isEmpty() then
+			local log = sgs.LogMessage()
+			log.type = "#shoot_failed"
+			log.from = source
+			log.to = missed_targets
+			log.card_str = self:toString()
+			room:sendLog(log)
+		end
+		for _, t in ipairs(hit_targets) do
+			room:cardEffect(self, source, t)
+		end
+		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
+			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
+			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
+		end
+	end,
+	on_effect = function(self, effect)
+		local source = effect.from
+		local target = effect.to
+		local room = source:getRoom()
+		--room:setEmotion(source, "killer")
+		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
+			local damage = sgs.DamageStruct()
+			damage.from = source
+			damage.to = target
+			damage.damage = 1
+			damage.card = self
+			room:damage(damage)
+		end
+	end
+}
+
 baizhanvs = sgs.CreateOneCardViewAsSkill{
 	name = "baizhan",
 	response_pattern = "@@baizhan",
@@ -2311,6 +2446,9 @@ baizhan = sgs.CreateTriggerSkill{
 			local id = room:askForCardChosen(player, damage.to, "he", self:objectName())
 			room:throwCard(id, damage.to, player)
 			local card = sgs.Sanguosha:getCard(id)
+			
+			if card:isKindOf("Shoot") then return false end --BUG:can't view as
+			
 			if not player:isNude() and card:getNumber() < 13 and not card:isKindOf("EquipCard") and card:isAvailable(player) then
 				--BUG: analeptic can't use twice as slash?
 				room:setPlayerMark(player, "baizhan", card:getNumber())
@@ -2984,17 +3122,8 @@ quanwu = sgs.CreateTriggerSkill
 			room:broadcastSkillInvoke("quanwu")
 			room:doLightbox("image=image/animate/quanwu.png", 1500)
 			room:sendCompulsoryTriggerLog(player, self:objectName())
-			room:setPlayerMark(player, "quanwu", 1)
-			local json = require ("json")
-			local general = sgs.Sanguosha:getGeneral("FA_UNICORN")
-			assert(general)
-			local jsonValue = {
-				10,
-				player:objectName(),
-				general:objectName(),
-				"",
-			}
-			room:doBroadcastNotify(sgs.CommandType.S_COMMAND_LOG_EVENT, json.encode(jsonValue))
+			room:setPlayerMark(player, "quanwu", 1)			
+			stopHuashen(player)
 			room:setPlayerMark(player, "@NTD", 0)
 			room:changeHero(player, "FA_UNICORN", false, true, player:getGeneralName() ~= "UNICORN", true)
 			
@@ -3526,7 +3655,7 @@ wangling = sgs.CreateTriggerSkill{
 		local damage = data:toDamage()
 	    local skilllist = {}
 		for _,skill in sgs.qlist(player:getVisibleSkillList()) do
-			if skill:objectName() ~= "wangling" and (not skill:isAttachedLordSkill()) then
+			if skill:objectName() == "xiaya" or skill:objectName() == "zaishi" then
 		        table.insert(skilllist,skill:objectName())
 			end
 		end
@@ -8992,7 +9121,7 @@ LEGEND:addSkill(jiqi)
 LEGEND:addSkill(kelong)
 --LEGEND:addSkill(kelongd)
 
-SP_DESTINY = sgs.General(extension, "SP_DESTINY", "ZAFT", 4, true, true)
+SP_DESTINY = sgs.General(extension, "SP_DESTINY", "ZAFT", 4, true, true, true)
 
 shanshuocard = sgs.CreateSkillCard{
 	name = "shanshuo",
@@ -9133,6 +9262,172 @@ SP_DESTINY:addSkill(shanshuo)
 SP_DESTINY:addSkill(shanshuodistance)
 SP_DESTINY:addSkill(xingzhui)
 extension:insertRelatedSkills("shanshuo", "#shanshuodistance")
+
+ASTRAY_RED = sgs.General(extension, "ASTRAY_RED", "ORB", 4, true, false)
+
+jianhunvs = sgs.CreateOneCardViewAsSkill{
+	name = "jianhun",
+	filter_pattern = ".|red",
+	view_as = function(self, card)
+		local analeptic = sgs.Sanguosha:cloneCard("analeptic", card:getSuit(), card:getNumber())
+		analeptic:setSkillName(self:objectName())
+		analeptic:addSubcard(card)
+		return analeptic
+	end,
+	enabled_at_play = function(self, player)
+		local analeptic = sgs.Sanguosha:cloneCard("analeptic", sgs.Card_NoSuit, 0)
+		return analeptic:isAvailable(player) and not player:hasUsed("jianhun") and player:getPile("hun"):length() < 3
+	end
+}
+
+jianhun = sgs.CreateTriggerSkill{
+	name = "jianhun",
+	events = {sgs.CardUsed, sgs.PreCardUsed},
+	view_as_skill = jianhunvs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card and use.card:getSkillName() == "jianhun" then
+			if event == sgs.CardUsed then
+				room:addPlayerHistory(player, "jianhun")
+				player:addToPile("hun", use.card)
+				room:setPlayerFlag(player, "jianhun-" .. use.card:getSuitString())
+			elseif player:getAI() then --AI不肯热血地喝酒，要用无中生有来骗他！
+				local analeptic = sgs.Sanguosha:cloneCard("analeptic", use.card:getSuit(), use.card:getNumber())
+				analeptic:setSkillName(self:objectName())
+				analeptic:addSubcard(use.card)
+				use.card = analeptic
+				data:setValue(use)
+			end
+		end
+	end
+}
+
+jianhunh1 = sgs.CreateAttackRangeSkill{
+	name = "#jianhunh1",
+	extra_func = function(self, player, include_weapon)
+		if player and player:hasFlag("jianhun-heart") then
+			return 1
+		end
+	end
+}
+
+jianhunh2 = sgs.CreateTriggerSkill{
+	name = "#jianhunh2",
+	events = {sgs.TargetSpecified},
+	on_trigger = function(self, event, player, data)
+	    local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card and use.card:isKindOf("Slash") and player:hasFlag("jianhun-heart") then
+			for _,p in sgs.qlist(use.to) do
+				if not p:isNude() then
+					local _data = sgs.QVariant()
+					_data:setValue(p)
+					if room:askForSkillInvoke(player, "jianhun", _data) then
+						room:throwCard(room:askForCardChosen(player, p, "he", "jianhun"), p, player)
+					end
+				end
+			end
+		end
+	end
+}
+
+jianhund1 = sgs.CreateTriggerSkill{
+	name = "#jianhund1",
+	events = {sgs.TargetSpecified},
+	on_trigger = function(self, event, player, data)
+	    local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card and use.card:isKindOf("Slash") and use.card:isBlack() and player:hasFlag("jianhun-diamond") then
+			room:sendCompulsoryTriggerLog(player, "jianhun")
+			local log = sgs.LogMessage()
+			log.type = "#IgnoreArmor"
+			log.from = player
+			log.card_str = use.card:toString()
+			room:sendLog(log)
+			for _,p in sgs.qlist(use.to) do
+				if p:getMark("Equips_of_Others_Nullified_to_You") == 0 then
+					p:addQinggangTag(use.card)
+				end
+			end
+		end
+	end
+}
+
+jianhund2 = sgs.CreateTargetModSkill{
+	name = "#jianhund2",
+	pattern = "Slash|red",
+	residue_func = function(self, player)
+		if player and player:hasFlag("jianhun-diamond") then
+			return 998
+		end
+	end,
+}
+
+huishou = sgs.CreateTriggerSkill{
+	name = "huishou",
+	frequency = sgs.Skill_Compulsory,
+	events = {sgs.BeforeCardsMove},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local move = data:toMoveOneTime()
+		if move.from == nil or move.from:objectName() == player:objectName() then return false end
+		if move.to_place == sgs.Player_DiscardPile and bit32.band(move.reason.m_reason, sgs.CardMoveReason_S_MASK_BASIC_REASON) == sgs.CardMoveReason_S_REASON_DISCARD then
+			local card_ids = sgs.IntList()
+			for i, card_id in sgs.qlist(move.card_ids) do
+				if sgs.Sanguosha:getCard(card_id):isKindOf("Weapon") and room:getCardOwner(card_id):objectName() == move.from:objectName() and (move.from_places:at(i) == sgs.Player_PlaceHand or move.from_places:at(i) == sgs.Player_PlaceEquip) then
+					card_ids:append(card_id)
+				end
+			end
+			if not card_ids:isEmpty() then
+				room:sendCompulsoryTriggerLog(player, self:objectName())
+				room:broadcastSkillInvoke(self:objectName())
+				move:removeCardIds(card_ids)
+				data:setValue(move)
+				local dummy = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+				dummy:addSubcards(card_ids)
+				room:moveCardTo(dummy, player, sgs.Player_PlaceHand, move.reason, true)
+			end
+		end
+	end
+}
+
+guangleivs = sgs.CreateZeroCardViewAsSkill{
+	name = "guanglei",
+	response_pattern = "@@guanglei",
+	view_as = function(self)
+		local acard = sgs.Sanguosha:cloneCard("thunder_slash", sgs.Card_SuitToBeDecided, -1)
+		acard:setSkillName(self:objectName())
+		for i = 0, 2, 1 do
+			acard:addSubcard(sgs.Self:getPile("hun"):at(i))
+		end
+		return acard
+	end
+}
+
+guanglei = sgs.CreateTriggerSkill{
+	name = "guanglei",
+	events = {sgs.EventPhaseStart},
+	view_as_skill = guangleivs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getPhase() == sgs.Player_Finish and player:getPile("hun"):length() >= 3 then
+			room:askForUseCard(player, "@@guanglei", "@guanglei")
+		end
+	end
+}
+
+ASTRAY_RED:addSkill(jianhun)
+ASTRAY_RED:addSkill(jianhunh1)
+ASTRAY_RED:addSkill(jianhunh2)
+ASTRAY_RED:addSkill(jianhund1)
+ASTRAY_RED:addSkill(jianhund2)
+extension:insertRelatedSkills("jianhun", "#jianhunh1")
+extension:insertRelatedSkills("jianhun", "#jianhunh2")
+extension:insertRelatedSkills("jianhun", "#jianhund1")
+extension:insertRelatedSkills("jianhun", "#jianhund2")
+ASTRAY_RED:addSkill(huishou)
+ASTRAY_RED:addSkill(guanglei)
 
 STRIKE_NOIR = sgs.General(extension, "STRIKE_NOIR", "OMNI", 4, true, false)
 
@@ -10982,14 +11277,7 @@ huanse = sgs.CreateTriggerSkill{
 				end
 			end
 			if invoked then
-				local json = require ("json")
-				local jsonValue = {
-					10,
-					player:objectName(),
-					player:getGeneralName(),
-					"",
-				}
-				room:doBroadcastNotify(sgs.CommandType.S_COMMAND_LOG_EVENT, json.encode(jsonValue))
+				stopHuashen(player)
 			end
 		elseif player:getPhase() == sgs.Player_Play and not player:hasFlag("huanse_used") then
 			local card = nil
@@ -11635,6 +11923,7 @@ sgs.LoadTranslationTable{
 	["seshia"] = "塞西娅",
 	["meiling"] = "美玲",
 	["yuudachi"] = "夕立",
+	["kizuna_ai"] = "绊爱",
 	["#RemoveEquipArea"] = "%from 失去了%arg区",
 	["#CardViewAs"] = "%from 的 %card 视为【%arg】",
 	["@gdsrecord"] = "请点击“确定”存档",
@@ -11706,6 +11995,9 @@ sgs.LoadTranslationTable{
 	["BGM29"] = "♪ STARGAZER ～星の扉",
 	["BGM30"] = "♪ ガンダム Gのレコンギスタ",
 	["BGM31"] = "♪ G-セルフの青い空",
+	["BGM32"] = "♪ 赤い一撃",
+	["BGM33"] = "♪ ミッション開始",
+	["BGM34"] = "♪ Zips",
 	
 	["BGM99"] = "♪ いけないボーダーライン",
 	
@@ -11921,7 +12213,7 @@ sgs.LoadTranslationTable{
 	["zaishi"] = "再世",
 	[":zaishi"] = "摸牌阶段摸牌时，你可以放弃摸牌，然后展示你的手牌，你重复摸牌，直到你拥有<font color='red'><b>三张红色</b></font>手牌，或以此法获得四张牌。",
 	["wangling"] = "亡灵",
-	[":wangling"] = "当你受到一次伤害时，你可以失去一项其他技能并防止此伤害，然后视为你对伤害来源使用一张【杀】。",
+	[":wangling"] = "当你受到一次伤害时，你可以失去技能<b>“夏亚”</b>或<b>“再世”</b>并防止此伤害，然后视为你对伤害来源使用一张【杀】。",
 	["wanglingcard"] = "亡灵",
 	["$xiaya1"] = "当たらなければどうという事はない!",
 	["$xiaya2"] = "この程度では落とされんよ!",
@@ -12770,6 +13062,35 @@ sgs.LoadTranslationTable{
 	["@xingzhui"] = "请选择【%src】的目标",
 	["~xingzhui"] = "选择目标→确定",
 	
+	["ASTRAY_RED"] = "红异端",
+	["#ASTRAY_RED"] = "火事场的天才",
+	["~ASTRAY_RED"] = "くっそぉ…俺のレッドフレームが…",
+	["designer:ASTRAY_RED"] = "高达杀制作组",
+	["cv:ASTRAY_RED"] = "罗·裘尔",
+	["illustrator:ASTRAY_RED"] = "wch5621628",
+	["jianhun"] = "剑魂",
+	[":jianhun"] = "出牌阶段限一次，你可以将一张<font color='red'><b>红色</b></font>牌当【酒】使用，然后置于武将牌上，称为<font color='red'><b>“魂”</b></font>（至多三张），本回合你根据此<font color='red'><b>“魂”</b></font>的花色获得以下效果。\
+红桃：攻击范围+1，你使用【杀】指定目标后可弃置其一张牌。\
+方块：你使用的<b>黑色</b>【杀】无视防具，<font color='red'><b>红色</b></font>【杀】无次数限制。",
+	["hun"] = "魂",
+	["huishou"] = "回收",
+	[":huishou"] = "<b><font color='blue'>锁定技，</font></b>当其他角色的武器牌因弃置而置入弃牌堆时，你获得之。",
+	["guanglei"] = "光雷",
+	[":guanglei"] = "结束阶段开始时，你可以将三张<font color='red'><b>“魂”</b></font>当雷【杀】使用。",
+	["@guanglei"] = "你可以将三张“魂”当雷【杀】使用",
+	["~guanglei"] = "选择目标→确定",
+	["$jianhun1"] = "ガーベラ・ストレェェトオォォッ!!",
+	["$jianhun2"] = "ここはっ…俺の勝ちだぁ!!",
+	["$jianhun3"] = "俺の怒りの炎に油を注いじまったようだぜ!!",
+	["$jianhun4"] = "ジャンク屋の根性、見せてやるぜ!",
+	["$huishou1"] = "お宝がぁ～!",
+	["$huishou2"] = "お宝きた～!",
+	["$huishou3"] = "心配するな。俺はジャンク屋だ、人殺しはしない…",
+	["$guanglei1"] = "これでどうだぁぁっ!",
+	["$guanglei2"] = "俺はあいつらを認めねぇ…だから負けられねぇんだ!",
+	["$guanglei3"] = "舐めんなよ! 戦艦10隻来たって、レッドフレームは守り切るぜ",
+	["$guanglei4"] = "アンタらが歴戦の手練なら、俺は火事場の天才だゼ!!",
+	
 	["STRIKE_NOIR"] = "漆黑突击",
 	["#STRIKE_NOIR"] = "幻痛之袭",
 	["~STRIKE_NOIR"] = "作戦続行不可能…",
@@ -13141,7 +13462,7 @@ sgs.LoadTranslationTable{
 	["illustrator:BUCUE"] = "官方",
 	["dizhan"] = "地战",
 	[":dizhan"] = "出牌阶段结束时，若你没有手牌，你可以视为使用一张【南蛮入侵】。",
-	["M1_ASTRAY"] = "M1迷惘",
+	["M1_ASTRAY"] = "M1异端",
 	["#M1_ASTRAY"] = "奥布主力",
 	["designer:M1_ASTRAY"] = "高达杀制作组",--水饺
 	["illustrator:M1_ASTRAY"] = "官方",
@@ -13255,6 +13576,7 @@ end
 
 --【皮肤系统】（置于页底以确保武将名翻译成功）
 if g_skin then
+	GUNDAM_skin1 = sgs.General(extension, "GUNDAM_skin1", "EFSF", 4, true, true, true)
 	CHAR_ZAKU_skin1 = sgs.General(extension, "CHAR_ZAKU_skin1", "ZEON", 4, true, true, true)
 	CHAR_ZAKU_skin2 = sgs.General(extension, "CHAR_ZAKU_skin2", "ZEON", 4, true, true, true)
 	SINANJU_skin1 = sgs.General(extension, "SINANJU_skin1", "SLEEVE", 4, true, true, true)
@@ -13271,6 +13593,7 @@ if g_skin then
 	SF_skin2 = sgs.General(extension, "SF_skin2", "ORB", 4, true, true, true)
 	EXIA_R_skin1 = sgs.General(extension, "EXIA_R_skin1", "CB", 4, true, true, true)
 	BUILD_BURNING_skin1 = sgs.General(extension, "BUILD_BURNING_skin1", "OTHERS", 4, true, true, true)
+	TRY_BURNING_skin1 = sgs.General(extension, "TRY_BURNING_skin1", "OTHERS", 4, true, true, true)
 	G_SELF_PP_skin1 = sgs.General(extension, "G_SELF_PP_skin1", "OTHERS", 4, true, true, true)
 	BARBATOS_skin1 = sgs.General(extension, "BARBATOS_skin1", "TEKKADAN", 4, true, true, true)
 	LUPUS_skin1 = sgs.General(extension, "LUPUS_skin1", "TEKKADAN", 4, true, true, true)
