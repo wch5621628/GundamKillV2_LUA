@@ -1229,6 +1229,7 @@ if g_skin then --BUG:hide some skins for KrAu!
 		{"PROVIDENCE", "PROVIDENCE_skin1", "PROVIDENCE_skin2"},
 		{"SAVIOUR", "SAVIOUR_skin1"},
 		{"SF", "SF_skin1", "SF_skin2"},
+		{"ASTRAY_RED", "ASTRAY_RED_skin1"},
 		{"EXIA_R", "EXIA_R_skin1"},
 		{"BUILD_BURNING", "BUILD_BURNING_skin1"},
 		{"TRY_BURNING", "TRY_BURNING_skin1"},
@@ -2289,134 +2290,6 @@ yuanzu = sgs.CreateTriggerSkill{
 GUNDAM:addSkill(yuanzu)
 ]]
 
-shoot = sgs.CreateBasicCard{
-	name = "shoot",
-	class_name = "Shoot",
-	subtype = "attack_card",
-	target_fixed = false,
-	can_recast = false,
-	suit = 0,
-	number = 6,
-	filter = function(self, targets, to_select)
-		return to_select:objectName() ~= sgs.Self:objectName()
-			and #targets < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, sgs.Self, self)
-	end,
-	feasible = function(self, targets)
-		return #targets > 0
-	end,
-	available = function(self, player)
-		return player:usedTimes("Shoot") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, player, self)
-	end,
-	about_to_use = function(self, room, use)
-		self:cardOnUse(room, use)
-	end,
-	on_use = function(self, room, source, targets)
-		local hit_targets, missed_targets = {}, sgs.SPlayerList()
-		math.random()
-		for _, t in ipairs(targets) do
-			if source:inMyAttackRange(t) or math.random(1, 100) <= 70 then
-				room:setEmotion(t, "lockon")
-				table.insert(hit_targets, t)
-			else
-				missed_targets:append(t)
-			end
-		end
-		if not missed_targets:isEmpty() then
-			local log = sgs.LogMessage()
-			log.type = "#shoot_failed"
-			log.from = source
-			log.to = missed_targets
-			log.card_str = self:toString()
-			room:sendLog(log)
-		end
-		for _, t in ipairs(hit_targets) do
-			room:cardEffect(self, source, t)
-		end
-		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
-			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
-			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
-		end
-	end,
-	on_effect = function(self, effect)
-		local source = effect.from
-		local target = effect.to
-		local room = source:getRoom()
-		--room:setEmotion(source, "killer")
-		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
-			local damage = sgs.DamageStruct()
-			damage.from = source
-			damage.to = target
-			damage.damage = 1
-			damage.card = self
-			room:damage(damage)
-		end
-	end
-}
-
-shoot = sgs.CreateBasicCard{--BUG:can't view as
-	name = "shoot",
-	class_name = "Shoot",
-	subtype = "attack_card",
-	target_fixed = false,
-	can_recast = false,
-	suit = 0,
-	number = 6,
-	filter = function(self, targets, to_select)
-		return to_select:objectName() ~= sgs.Self:objectName()
-			and #targets < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, sgs.Self, self)
-	end,
-	feasible = function(self, targets)
-		return #targets > 0
-	end,
-	available = function(self, player)
-		return player:usedTimes("Shoot") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, player, self)
-	end,
-	about_to_use = function(self, room, use)
-		self:cardOnUse(room, use)
-	end,
-	on_use = function(self, room, source, targets)
-		local hit_targets, missed_targets = {}, sgs.SPlayerList()
-		math.random()
-		for _, t in ipairs(targets) do
-			if source:inMyAttackRange(t) or math.random(1, 100) <= 70 then
-				room:setEmotion(t, "lockon")
-				table.insert(hit_targets, t)
-			else
-				missed_targets:append(t)
-			end
-		end
-		if not missed_targets:isEmpty() then
-			local log = sgs.LogMessage()
-			log.type = "#shoot_failed"
-			log.from = source
-			log.to = missed_targets
-			log.card_str = self:toString()
-			room:sendLog(log)
-		end
-		for _, t in ipairs(hit_targets) do
-			room:cardEffect(self, source, t)
-		end
-		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
-			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
-			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
-		end
-	end,
-	on_effect = function(self, effect)
-		local source = effect.from
-		local target = effect.to
-		local room = source:getRoom()
-		--room:setEmotion(source, "killer")
-		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
-			local damage = sgs.DamageStruct()
-			damage.from = source
-			damage.to = target
-			damage.damage = 1
-			damage.card = self
-			room:damage(damage)
-		end
-	end
-}
-
 baizhanvs = sgs.CreateOneCardViewAsSkill{
 	name = "baizhan",
 	response_pattern = "@@baizhan",
@@ -2449,8 +2322,7 @@ baizhan = sgs.CreateTriggerSkill{
 			
 			if card:isKindOf("Shoot") then return false end --BUG:can't view as
 			
-			if not player:isNude() and card:getNumber() < 13 and not card:isKindOf("EquipCard") and card:isAvailable(player) then
-				--BUG: analeptic can't use twice as slash?
+			if not player:isNude() and card:getNumber() < 13 and not card:isKindOf("EquipCard") and (card:isAvailable(player) or card:isKindOf("Analeptic")) then
 				room:setPlayerMark(player, "baizhan", card:getNumber())
 				room:setPlayerProperty(player, "baizhan", sgs.QVariant(card:objectName()))
 				room:askForUseCard(player, "@@baizhan", "@baizhan:" .. card:getNumber() .. ":" .. card:objectName())
@@ -7092,7 +6964,7 @@ zhuanjin = sgs.CreateTriggerSkill
 				dying.who:drawCards(player:getLostHp() + dying.who:getLostHp())
 				local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
 				slash:setSkillName("zhuanjincard")
-				if dying.damage.from and dying.damage.from:isAlive() and not player:isProhibited(player, slash) then
+				if dying.damage and dying.damage.from and dying.damage.from:isAlive() and not player:isProhibited(player, slash) then
 					local use = sgs.CardUseStruct()
 					use.from = dying.damage.from
 					use.to:append(player)
@@ -13591,6 +13463,7 @@ if g_skin then
 	SAVIOUR_skin1 = sgs.General(extension, "SAVIOUR_skin1", "ZAFT", 4, true, true, true)
 	SF_skin1 = sgs.General(extension, "SF_skin1", "ORB", 4, true, true, true)
 	SF_skin2 = sgs.General(extension, "SF_skin2", "ORB", 4, true, true, true)
+	ASTRAY_RED_skin1 = sgs.General(extension, "ASTRAY_RED_skin1", "ORB", 4, true, true, true)
 	EXIA_R_skin1 = sgs.General(extension, "EXIA_R_skin1", "CB", 4, true, true, true)
 	BUILD_BURNING_skin1 = sgs.General(extension, "BUILD_BURNING_skin1", "OTHERS", 4, true, true, true)
 	TRY_BURNING_skin1 = sgs.General(extension, "TRY_BURNING_skin1", "OTHERS", 4, true, true, true)
