@@ -4818,8 +4818,18 @@ ALICE = sgs.CreateTriggerSkill{
 		if damage.card and damage.card:isKindOf("Slash") and room:askForSkillInvoke(player, self:objectName(), data) then
 			room:setPlayerFlag(player, "-ALICE")
 			local ids = sgs.IntList()
-			for i=0, 2, 1 do
-				ids:append(room:getDrawPile():at(i))
+			local j, swapped = 0, false
+			for i = 0, 2, 1 do
+				if room:getDrawPile():length() == i then
+					room:swapPile()
+					swapped = true
+				end
+				if swapped then
+					ids:append(room:getDrawPile():at(j))
+					j = j + 1
+				else
+					ids:append(room:getDrawPile():at(i))
+				end
 			end
 			room:fillAG(ids, player)
 			room:getThread():delay(1500)
@@ -4860,7 +4870,7 @@ ALICE = sgs.CreateTriggerSkill{
 						pattern = pattern .. "," .. sgs.Sanguosha:getCard(id):toString()
 					end
 				end
-				local card2obtain = room:askForCard(player, pattern, "@ALICE-obtain", data, sgs.Card_MethodNone,
+				local card2obtain = room:askForCard(player, pattern.."!", "@ALICE-obtain", data, sgs.Card_MethodNone,
 										nil, false, self:objectName(), false)
 				if card2obtain then
 					local move3 = sgs.CardsMoveStruct(card2obtain:getId(), player, nil, sgs.Player_PlaceHand, sgs.Player_PlaceTable,
@@ -4892,7 +4902,7 @@ ALICE = sgs.CreateTriggerSkill{
 								pattern2 = pattern2 .. "," .. sgs.Sanguosha:getCard(id2):toString()
 							end
 						end
-						local card2give = room:askForCard(player, pattern2, "@ALICE-give:"..damage.from:getGeneralName(),
+						local card2give = room:askForCard(player, pattern2.."!", "@ALICE-give:"..damage.from:getGeneralName(),
 											data, sgs.Card_MethodNone, damage.from, false, self:objectName(), true)
 						if card2give then
 							local move3 = sgs.CardsMoveStruct(card2give:getId(), player, nil, sgs.Player_PlaceHand, sgs.Player_PlaceTable,
@@ -12228,7 +12238,7 @@ sgs.LoadTranslationTable{
 	["fanshe"] = "反射",
 	[":fanshe"] = "出牌阶段限一次，你可以亮出牌堆顶的一张牌，若为<b><font color='red'>红色</font></b>，将其置于一名其他角色的武将牌上，称为<b><font color='red'>“INCOM”</font></b>，本回合你使用的牌由<b><font color='red'>“INCOM”</font></b>角色计算距离，且视为<b><font color='red'>“INCOM”</font></b>角色使用（你为伤害来源）。结束阶段开始时，你回收<b><font color='red'>“INCOM”</font></b>。",
 	["@fanshe"] = "请将<b><font color='red'>“INCOM”</font></b>置于一名其他角色的武将牌上",
-	[":ALICE"] = "当你受到【杀】造成的伤害时，你可以观看牌堆顶的三张牌，若其中有两张相同花色的牌，你亮出之。你获得其中一张牌，将另一张牌交给伤害来源并防止此伤害。",
+	[":ALICE"] = "当你受到【杀】造成的伤害时，你可以观看牌堆顶的三张牌，若其中有两张相同花色的牌，你亮出之，你获得其中一张牌，将另一张牌交给伤害来源并防止此伤害。",
 	["@ALICE-obtain"] = "请选择一张你获得的牌",
 	["@ALICE-give"] = "请选择一张 %src 获得的牌",
 	
