@@ -783,7 +783,7 @@ gdsrecord = sgs.CreateTriggerSkill{
 				local rule = sgs.GetConfig("1v1/Rule", "2013")
 				local n = 0
 				if rule == "2013" then n = 3 end
-				if list:length() > n then return false end
+				if #list > n then return false end
 			end
 
 			local winner = getWinner(player) -- player is victim
@@ -1594,7 +1594,7 @@ saveItem = function(item_type, add_num)
 			n = n + add_num
 			exist = true
 		end
-		record:write(s[1] .. "=" .. n)
+		record:write(s[1] .. "=" .. n)--BUG:nil n
 		if d ~= #tt or not exist then
 			record:write("\n")
 		end
