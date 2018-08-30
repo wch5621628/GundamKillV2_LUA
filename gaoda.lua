@@ -9567,6 +9567,11 @@ jidongcard = sgs.CreateSkillCard{
 			local maxhp = source:getMaxHp()
 			room:changeHero(source, "REBORNS_GUNDAM", false, false, source:getGeneralName() ~= "REBORNS_CANNON", true)
 			room:setPlayerProperty(source, "maxhp", sgs.QVariant(maxhp))
+		
+			if source:getMark("reborns_transam_used") > 0 then
+				room:removePlayerMark(source, "@reborns_transam")
+			end
+		
 		elseif source:getGeneralName() == "REBORNS_GUNDAM" or source:getGeneral2Name() == "REBORNS_GUNDAM" then
 			room:broadcastSkillInvoke("jidong", math.random(1, 2))
 			local maxhp = source:getMaxHp()
@@ -9701,6 +9706,8 @@ REBORNS_TRANSAMcard = sgs.CreateSkillCard{
 	target_fixed = true,
 	will_throw = false,
 	on_use = function(self, room, source, targets)
+		room:addPlayerMark(source, "reborns_transam_used")
+	
 		source:loseMark("@reborns_transam")
 		room:broadcastSkillInvoke("gdsbgm", 3)
 		room:doLightbox("image=image/animate/TRANS-AM.png", 1500)
@@ -9732,6 +9739,7 @@ REBORNS_TRANSAM = sgs.CreateTriggerSkill{
 	name = "reborns_transam",
 	frequency = sgs.Skill_Limited,
 	view_as_skill = REBORNS_TRANSAMvs,
+	limit_mark = "@reborns_transam",
 	events = {sgs.NonTrigger},
 	on_trigger = function(self, event, player, data)
 	end
@@ -9739,19 +9747,11 @@ REBORNS_TRANSAM = sgs.CreateTriggerSkill{
 
 REBORNS_TRANSAMmark = sgs.CreateTriggerSkill{
 	name = "#reborns_transammark",
-	events = {sgs.GameStart, sgs.EventPhaseChanging},
+	events = {sgs.EventPhaseChanging},
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-		if event == sgs.GameStart then
-			if player:getMark("@reborns_transam") == 0 then
-				player:gainMark("@reborns_transam")
-			end
-		else
-		
-			if data:toPhaseChange().to == sgs.Player_NotActive then --Clear mask
-				room:setPlayerMark(player, "drank", 0)
-			end
-			
+		if data:toPhaseChange().to == sgs.Player_NotActive then --Clear mask
+			room:setPlayerMark(player, "drank", 0)
 		end
 	end
 }
