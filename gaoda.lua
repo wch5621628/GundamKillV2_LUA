@@ -1218,7 +1218,7 @@ if show_winrate then
 end
 
 --【皮肤系统】（续页底）
-if g_skin then --BUG:hide some skins for KrAu!
+if g_skin then --KrAu!
 	g_skin_cp = {
 		{"GUNDAM", "GUNDAM_skin1"},
 		{"CHAR_ZAKU", "CHAR_ZAKU_skin1", "CHAR_ZAKU_skin2"},
@@ -1390,7 +1390,7 @@ if lucky_card then
 	itemshow = sgs.General(extension, "itemshow", "", 0, true, true, false)
 	itemshow:setGender(sgs.General_Sexless)
 	
-	itemnumcard = sgs.CreateSkillCard{--BUG:niudan change description in game
+	itemnumcard = sgs.CreateSkillCard{
 		name = "itemnum",
 		target_fixed = true,
 		will_throw = false,
@@ -1623,7 +1623,8 @@ luckyrecordvs = sgs.CreateZeroCardViewAsSkill{
 	view_as = function(self)
 		if not sgs.Self:hasFlag("g2data_saved") then
 			sgs.Self:setFlags("g2data_saved")
-			saveItem("Coin", 1)
+			local n = math.max(sgs.Self:getMark("add_coin"), 1)
+			saveItem("Coin", n)
 		end
 		return luckyrecordcard:clone()
 	end
@@ -1701,11 +1702,11 @@ if lucky_card then
 	local DailyCoin = function()
 		math.random()
 		if math.random(1, 100) <= 60 then
-			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n恭喜你获得 1 枚G币！")
 			saveItem("Coin", 1)
+			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n恭喜你获得 1 枚G币！")
 		else
-			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n你今天的运气真好！\n恭喜你获得 5 枚G币！")
 			saveItem("Coin", 5)
+			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n你今天的运气真好！\n恭喜你获得 5 枚G币！")
 		end
 	end
 	
@@ -1903,9 +1904,7 @@ function zbHpProcess(player)
 	local room = player:getRoom()
 	local marks = player:getMarkNames()
 	for _,mark in pairs(marks) do
-		if mark:startsWith("@zb_") and player:getMark(mark) > 0 then --Once the mark is added, it is always in the records(marks) even though its quantity changes to 0. Records(marks) are sorted in ascending alphabetical order.
-			room:setPlayerMark(player, mark, 0)
-			
+		if mark:startsWith("@zb_") and player:getMark(mark) > 0 then --Once the mark is added, it is always in the records(marks) even though its quantity changes to 0. Records(marks) are sorted in ascending alphabetical order.			
 			local s = mark:split("_")
 			local max = tonumber(string.sub(s[2], string.len(s[2])))
 			local cur = tonumber(string.sub(s[3], string.len(s[3])))
@@ -1929,12 +1928,14 @@ function zbHpProcess(player)
 				end
 			end
 			
+			room:setPlayerMark(player, mark, 0)
+			
 			break
 		end
 	end
 end
 
-zabingrecord = sgs.CreateTriggerSkill{--BUG:disappeared button?
+zabingrecord = sgs.CreateTriggerSkill{
 	name = "zabingrecord",
 	events = {sgs.EventPhaseStart, sgs.Damage, sgs.Damaged},
 	global = true,
@@ -1946,7 +1947,7 @@ zabingrecord = sgs.CreateTriggerSkill{--BUG:disappeared button?
 		local room = player:getRoom()
 		if event == sgs.EventPhaseStart then
 			if player:getPhase() == sgs.Player_Play then
-				if player:getGeneral2() == nil and player:getMark("Global_TurnCount") == 2 then --BUG:skipped phase no skill
+				if player:getGeneral2() == nil and player:getMark("Global_TurnCount") == 2 then
 					room:attachSkillToPlayer(player, "zabing")
 				end
 				zbHpProcess(player)
@@ -1957,6 +1958,28 @@ zabingrecord = sgs.CreateTriggerSkill{--BUG:disappeared button?
 				if player:getGeneral2() and player:property("zabing"):toString() ~= "" then
 					zbHpProcess(player)
 				end
+			end
+		end
+	end
+}
+
+--【小型场景DEBUG】（为人民服务）
+gdsdebug = sgs.CreateTriggerSkill{
+	name = "gdsdebug",
+	events = {sgs.TurnStart},
+	global = true,
+	priority = 2,
+	can_trigger = function(self, player)
+	    return player:getGameMode() == "custom_scenario" or player:getGameMode():startsWith("_mini_")
+	end,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if room:getTag("gdsdebug"):toBool() then return false end
+		room:setTag("gdsdebug", sgs.QVariant(true))
+		local missed_events = {sgs.GameStart, sgs.DrawInitialCards, sgs.AfterDrawInitialCards}--小型场景未能触发的时机
+		for _,e in ipairs(missed_events) do
+			for _,p in sgs.qlist(room:getAlivePlayers()) do
+				room:getThread():trigger(e, room, p)
 			end
 		end
 	end
@@ -1981,6 +2004,7 @@ if not sgs.Sanguosha:getSkill("luckyrecord") then skills:append(luckyrecord) end
 if not sgs.Sanguosha:getSkill("zyrecord") then skills:append(zyrecord) end
 if not sgs.Sanguosha:getSkill("zabing") then skills:append(zabing) end
 if not sgs.Sanguosha:getSkill("zabingrecord") then skills:append(zabingrecord) end
+if not sgs.Sanguosha:getSkill("gdsdebug") then skills:append(gdsdebug) end
 sgs.Sanguosha:addSkills(skills)
 
 IIVS = sgs.General(extension, "IIVS", "OTHERS", 4, true, false)
