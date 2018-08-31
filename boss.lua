@@ -28,16 +28,11 @@ gainCoin = function(player, n)
 	end
 	
 	local ip = room:getOwner():getIp()
-	if ip ~= "" and string.find(ip, "127.0.0.1") and player:objectName() == room:getOwner():objectName() then
-		require  "extensions.gaoda"
-		saveItem("Coin", n)
-	else
-		if player:getState() == "online" then
-			room:setPlayerMark(player, "add_coin", 10)
-			room:askForUseCard(player, "@@luckyrecord!", "@luckyrecord")
-			room:setPlayerMark(player, "add_coin", 0)
-			room:setPlayerFlag(player, "-g2data_saved")
-		end
+	if player:getState() == "online" then
+		room:setPlayerMark(player, "add_coin", n)
+		room:askForUseCard(player, "@@luckyrecord!", "@luckyrecord")
+		room:setPlayerMark(player, "add_coin", 0)
+		room:setPlayerFlag(player, "-g2data_saved")
 	end
 end
 
@@ -101,10 +96,43 @@ _mini_3_skill = sgs.CreateTriggerSkill{
 	end
 }
 
+_mini_4_skill = sgs.CreateTriggerSkill{
+	name = "_mini_4_skill",
+	events = {sgs.GameOverJudge},
+	priority = 1,
+	global = true,
+	can_trigger = function(self, player)
+	    return player:getGameMode() == "_mini_4"
+	end,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getKingdom() == "OMNI" and room:getLieges("OMNI", player):isEmpty() then
+			for i,p in sgs.qlist(room:getAllPlayers(true)) do
+				if i == 5 then
+					room:revivePlayer(p)
+					room:changeHero(p, "DESTINY", true, true, false, true)
+					p:drawCards(4)
+				elseif i == 6 then
+					room:revivePlayer(p)
+					room:changeHero(p, "LEGEND", true, true, false, true)
+					p:drawCards(4)
+				end
+			end
+		elseif player:getKingdom() == "ZAFT" and room:getLieges("ZAFT", player):isEmpty() then
+			for _,p in sgs.qlist(room:getAllPlayers(true)) do
+				if p:getState() == "online" then
+					gainCoin(p, 10)
+				end
+			end
+		end
+	end
+}
+
 SHAMBLO = sgs.General(extension, "SHAMBLO", "ZEON", 8, false, true, true)
 
 local skills = sgs.SkillList()
 if not sgs.Sanguosha:getSkill("_mini_3_skill") then skills:append(_mini_3_skill) end
+if not sgs.Sanguosha:getSkill("_mini_4_skill") then skills:append(_mini_4_skill) end
 sgs.Sanguosha:addSkills(skills)
 
 sgs.LoadTranslationTable{
