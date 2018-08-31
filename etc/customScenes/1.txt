@@ -1,0 +1,1 @@
+general:itemshow role:unknown starter:true nationality:OTHERS singleTurn:lord+loyalist draw:0 acquireSkills:itemnum_ten 

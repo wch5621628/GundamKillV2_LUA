@@ -1,0 +1,4 @@
+general:select role:rebel 
+general:select role:rebel 
+general:select role:rebel 
+general:BARBATOS role:lord starter:true equip:58,68 

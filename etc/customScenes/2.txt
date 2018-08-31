@@ -1,0 +1,2 @@
+general:STRIKE maxhp:4 hp:1 role:lord starter:true 
+general:AEGIS role:rebel maxhp:4 hp:1 acquireSkills:shouwang,zhongzij,hanwei,zhongziij equip:105 
