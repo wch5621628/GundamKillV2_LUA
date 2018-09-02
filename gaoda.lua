@@ -760,6 +760,7 @@ gdsrecord = sgs.CreateTriggerSkill{
 	events = {sgs.DrawInitialCards, sgs.GameOverJudge},
 	global = true,
 	view_as_skill = gdsrecordvs,
+	priority = 0,
 	can_trigger = function(self, player)
 	    return dlc == true
 	end,
@@ -3517,7 +3518,7 @@ zaishi = sgs.CreateTriggerSkill{
 	events = {sgs.DrawNCards},
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-		if room:askForSkillInvoke(player,self:objectName(),sgs.QVariant()) then
+		if room:askForSkillInvoke(player, self:objectName(), data) then
 			room:broadcastSkillInvoke("zaishi")
 			local n = 0
 			data:setValue(0)
@@ -3526,18 +3527,27 @@ zaishi = sgs.CreateTriggerSkill{
 				room:getThread():delay(700)
 				if n >= 4 then break end
 				local red = 0
-				for _,cd in sgs.qlist(player:handCards()) do
-					if sgs.Sanguosha:getCard(cd):isRed() then
+				for _,card in sgs.qlist(player:getHandcards()) do
+					if card:isRed() then
 						red = red + 1
 					end
 				end
 				if red >= 3 then break end
-				player:drawCards(1)
+				--player:drawCards(1)
+				player:obtainCard(sgs.Sanguosha:getCard(room:drawCard()))
 				n = n + 1
 			end
 			for i = 1, n+1, 1 do
 				room:clearAG()
 			end
+			local log = sgs.LogMessage()
+			log.type = "$ShowAllCards"
+			log.from = player
+			for _,card in sgs.qlist(player:getHandcards()) do
+				room:setCardFlag(card, "visible")
+			end
+			log.card_str = table.concat(sgs.QList2Table(player:handCards()), "+")
+			room:sendLog(log)
 		end
 	end
 }

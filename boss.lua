@@ -98,7 +98,7 @@ _mini_3_skill = sgs.CreateTriggerSkill{
 
 _mini_4_skill = sgs.CreateTriggerSkill{
 	name = "_mini_4_skill",
-	events = {sgs.GameOverJudge},
+	events = {sgs.GameOverJudge, sgs.BuryVictim},
 	priority = 1,
 	global = true,
 	can_trigger = function(self, player)
@@ -106,23 +106,85 @@ _mini_4_skill = sgs.CreateTriggerSkill{
 	end,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-		if player:getKingdom() == "OMNI" and room:getLieges("OMNI", player):isEmpty() then
-			for i,p in sgs.qlist(room:getAllPlayers(true)) do
-				if i == 5 then
-					room:revivePlayer(p)
-					room:changeHero(p, "DESTINY", true, true, false, true)
-					p:drawCards(4)
-				elseif i == 6 then
-					room:revivePlayer(p)
-					room:changeHero(p, "LEGEND", true, true, false, true)
-					p:drawCards(4)
+		if event == sgs.GameOverJudge then
+			if player:getKingdom() == "OMNI" and room:getLieges("OMNI", player):isEmpty() then
+				local a, b = room:getAllPlayers(true):at(5), room:getAllPlayers(true):at(6)
+				room:revivePlayer(a)
+				room:revivePlayer(b)
+				if a:objectName() == player:objectName() then
+					room:setPlayerFlag(player, "_mini_4_destiny")
+					room:changeHero(b, "LEGEND", true, true, false, true)
+					b:drawCards(4)
+					if not b:faceUp() then
+						b:turnOver()
+					end
+					if b:isChained() then
+						room:setPlayerProperty(b, "chained", sgs.QVariant(false))
+					end
+					return true
+				elseif b:objectName() == player:objectName() then
+					room:setPlayerFlag(player, "_mini_4_legend")
+					room:changeHero(a, "DESTINY", true, true, false, true)
+					a:drawCards(4)
+					if not a:faceUp() then
+						a:turnOver()
+					end
+					if a:isChained() then
+						room:setPlayerProperty(a, "chained", sgs.QVariant(false))
+					end
+					return true
+				else
+					room:changeHero(a, "DESTINY", true, true, false, true)
+					a:drawCards(4)
+					if not a:faceUp() then
+						a:turnOver()
+					end
+					if a:isChained() then
+						room:setPlayerProperty(a, "chained", sgs.QVariant(false))
+					end
+					
+					room:changeHero(b, "LEGEND", true, true, false, true)
+					b:drawCards(4)
+					if not b:faceUp() then
+						b:turnOver()
+					end
+					if b:isChained() then
+						room:setPlayerProperty(b, "chained", sgs.QVariant(false))
+					end
+					return true
+				end
+			elseif player:getKingdom() == "ZAFT" and room:getLieges("ZAFT", player):isEmpty() then
+				for _,p in sgs.qlist(room:getAllPlayers(true)) do
+					if p:getState() == "online" then
+						gainCoin(p, 10)
+					end
 				end
 			end
-		elseif player:getKingdom() == "ZAFT" and room:getLieges("ZAFT", player):isEmpty() then
-			for _,p in sgs.qlist(room:getAllPlayers(true)) do
-				if p:getState() == "online" then
-					gainCoin(p, 10)
+		else
+			if player:hasFlag("_mini_4_destiny") then
+				room:setPlayerFlag(player, "-_mini_4_destiny")
+				room:changeHero(player, "DESTINY", true, true, false, true)
+				player:throwAllCards()
+				player:drawCards(4)
+				if not player:faceUp() then
+					player:turnOver()
 				end
+				if player:isChained() then
+					room:setPlayerProperty(player, "chained", sgs.QVariant(false))
+				end
+				return true
+			elseif player:hasFlag("_mini_4_legend") then
+				room:setPlayerFlag(player, "-_mini_4_legend")
+				room:changeHero(player, "LEGEND", true, true, false, true)
+				player:throwAllCards()
+				player:drawCards(4)
+				if not player:faceUp() then
+					player:turnOver()
+				end
+				if player:isChained() then
+					room:setPlayerProperty(player, "chained", sgs.QVariant(false))
+				end
+				return true
 			end
 		end
 	end
