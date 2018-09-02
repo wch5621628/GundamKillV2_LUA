@@ -168,7 +168,7 @@ skin_skill.name="skin"
 table.insert(sgs.ai_skills,skin_skill)
 skin_skill.getTurnUseCard=function(self,inclusive)
 	math.random()
-    if not self.player:hasUsed("#skin") and math.random(1, 100) <= 30 then
+	if not self.player:hasUsed("#skin") and math.random(1, 100) <= 30 then
 		local card_str = ("#skin:.:")
 		return sgs.Card_Parse(card_str)
 	end
@@ -248,12 +248,12 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 0 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
 	elseif card[2] == "peach" or card[2] == "analeptic" or card[2] == "ex_nihilo" or card[2] == "amazing_grace" or card[2] == "savage_assault" or card[2] == "archery_attack" or card[2] == "god_salvation" then
-	    return ("%s:shensheng[%s:%s]=%s"):format(card[2],card[3],card[4],card[5])
+	    return card[5]
 	elseif card[2] == "iron_chain" then
 	    local situation_is_friend = false
 	    for _, friend in ipairs(self.friends) do
@@ -270,7 +270,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 		        end
 			end
 			if #targets > 0 then
-			    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+			    return card[5] .. "->" .. table.concat(targets,"+")
 			else
 			    return "."
 			end
@@ -287,7 +287,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 				end
 			end
 			if (#targets + chained_enemy) > 1 then
-				return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+				return card[5] .. "->" .. table.concat(targets,"+")
 			else
 			    return "."
 			end
@@ -302,7 +302,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 0 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
@@ -316,7 +316,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 0 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
@@ -331,7 +331,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 0 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
@@ -352,7 +352,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 1 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
@@ -366,7 +366,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 0 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
@@ -382,7 +382,7 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 0 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
@@ -396,13 +396,20 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			end
 		end
 		if #targets > 0 then
-		    return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+		    return card[5] .. "->" .. table.concat(targets,"+")
 		else
 		    return "."
 		end
 	elseif card[2] == "tactical_combo" then
 		local targets = {}
 		local friends = self.friends
+		
+		for _,friend in pairs(self.friends) do
+			if friend:isProhibited(friend, sgs.Sanguosha:getCard(card[5])) then
+				table.removeOne(friends, friend)
+			end
+		end
+		
 		for i = 1, 2, 1 do
 			local n = math.random(#friends)
 			table.insert(targets, friends[n]:objectName())
@@ -410,9 +417,23 @@ sgs.ai_skill_use["@@shensheng"]=function(self,prompt)
 			if #friends == 0 then break end
 		end
 		if #targets > 0 then
-			return ("%s:shensheng[%s:%s]=%s->%s"):format(card[2],card[3],card[4],card[5],table.concat(targets,"+"))
+			return card[5] .. "->" .. table.concat(targets,"+")
 		else
 			return "."
+		end
+	elseif card[2]:endsWith("shoot") then
+	    self:sort(self.enemies, "defense")
+		local targets = {}
+		for _,enemy in ipairs(self.enemies) do
+		    if (not enemy:isProhibited(enemy, sgs.Sanguosha:getCard(card[5]))) then
+				if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, sgs.Sanguosha:getCard(card[5])) then break end
+				table.insert(targets,enemy:objectName())
+			end
+		end
+		if #targets > 0 then
+			return card[5] .. "->" .. table.concat(targets,"+")
+		else
+		    return "."
 		end
 	end
 	return "."
@@ -612,6 +633,13 @@ sgs.ai_skill_use["@@baizhan"]=function(self,prompt)
 			elseif name == "tactical_combo" then
 				local targets = {}
 				local friends = self.friends
+				
+				for _,friend in pairs(self.friends) do
+					if friend:isProhibited(friend, sgs.Sanguosha:getCard(card[5])) then
+						table.removeOne(friends, friend)
+					end
+				end
+				
 				for i = 1, 2, 1 do
 					local n = math.random(#friends)
 					table.insert(targets, friends[n]:objectName())
@@ -3036,6 +3064,69 @@ sgs.ai_view_as.kelong = function(card, player, card_place)
 	end
 end
 
+--红异端
+local jianhun_skill = {}
+jianhun_skill.name = "jianhun"
+table.insert(sgs.ai_skills, jianhun_skill)
+jianhun_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:hasUsed("jianhun") or self.player:getPile("hun"):length() >= 3 then return false end
+	local cards = self.player:getCards("he")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards)
+	for _,card in ipairs(cards) do
+		if card:isRed() and not card:isKindOf("ExNihilo") and not (self.player:isWounded() and card:isKindOf("Peach"))
+			and not (self:getCardsNum("Jink") == 1 and card:isKindOf("Jink")) and not (self:getCardsNum("Slash") == 1 and card:isKindOf("Slash")) then
+			local suit = card:getSuitString()
+			local number = card:getNumberString()
+			local card_id = card:getEffectiveId()
+			local card_str = ("ex_nihilo:jianhun[%s:%s]=%d"):format(suit, number, card_id) --AI不肯热血地喝酒，要用无中生有来骗他！
+			local analeptic = sgs.Card_Parse(card_str)
+			if sgs.Analeptic_IsAvailable(self.player, analeptic) then
+				assert(analeptic)
+				return analeptic
+			end
+		end
+	end
+end
+
+sgs.ai_use_value["jianhun"] = sgs.ai_use_value.Analeptic + 0.1
+sgs.ai_use_priority["jianhun"] = sgs.ai_use_priority.Analeptic + 0.1
+
+sgs.ai_skill_invoke.jianhun = function(self, data)
+	local target = data:toPlayer()
+	return self:isEnemy(target)
+end
+
+sgs.ai_skill_use["@@guanglei"] = function(self, prompt)
+    self:updatePlayers()
+	self:sort(self.enemies, "defenseSlash")
+	local targets = {}
+	local slash = sgs.Sanguosha:cloneCard("thunder_slash")
+	slash:setSkillName("guanglei")
+	for i = 0, 2, 1 do
+		slash:addSubcard(self.player:getPile("hun"):at(i))
+	end
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:canSlash(enemy) and not enemy:isProhibited(enemy, slash) then
+			if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, slash) then break end
+			table.insert(targets, enemy:objectName())
+		end
+	end
+	if #targets > 0 then
+		return slash:toString() .. "->" .. table.concat(targets, "+")
+	end
+	return "."
+end
+
+sgs.jianhun_suit_value = {
+	heart = 3.9,
+	diamond = 3.9
+}
+
+function sgs.ai_cardneed.jianhun(to, card)
+	return card:isRed()
+end
+
 --漆黑突击
 sgs.ai_skill_use["@@huantong"] = function(self, prompt)
     self:updatePlayers()
@@ -3201,6 +3292,8 @@ local jidong_skill = {}
 jidong_skill.name = "jidong"
 table.insert(sgs.ai_skills, jidong_skill)
 jidong_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:usedTimes("#jidong") >= 10 then return false end --Prevent AI using infinitely
+	
 	if (self.player:getCards("he"):length() > 2  and not self.player:hasUsed("#jidong")) or self.player:hasUsed("#reborns_transam") then
 		if self.player:getGeneralName() == "REBORNS_GUNDAM" and (self:getCardsNum("FireSlash") + self:getCardsNum("ThunderSlash")) == 0 then return false end
 		if self.player:getGeneralName() == "REBORNS_CANNON" and (self:getCardsNum("FireSlash") + self:getCardsNum("ThunderSlash")) > 0
