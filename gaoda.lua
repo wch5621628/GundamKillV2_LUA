@@ -1501,6 +1501,8 @@ if lucky_card then
 						saveItem(item, 1)
 					end
 				end
+				lucky_translate() --动态描述
+				room:changeHero(use.from, "itemshow", false, false, false, false)
 			end
 		end
 	}
@@ -13526,108 +13528,111 @@ if g_skin then
 end
 
 --【扭蛋、彩蛋模式】（置于页底以确保武将名翻译成功）
-if lucky_card then
-	if sgs.Sanguosha:translate("itemshow") == "itemshow" then
-		saveItem("Coin", 0)
-		for _,zb in pairs(zb_list) do
-			saveItem(zb, 0)
-		end
-		for _,sk in pairs(g_skin_cp) do
-			for _,t in ipairs(sk) do
-				if string.find(t, "_skin") then
-					saveItem(t, 0)
+lucky_translate = function() --动态描述
+	if lucky_card then
+		if sgs.Sanguosha:translate("itemshow") == "itemshow" then
+			saveItem("Coin", 0)
+			for _,zb in pairs(zb_list) do
+				saveItem(zb, 0)
+			end
+			for _,sk in pairs(g_skin_cp) do
+				for _,t in ipairs(sk) do
+					if string.find(t, "_skin") then
+						saveItem(t, 0)
+					end
 				end
 			end
+			for _,un in pairs(unlock_list) do
+				saveItem(un, 0)
+			end
 		end
-		for _,un in pairs(unlock_list) do
-			saveItem(un, 0)
+		
+		local file = io.open(g2data, "r")
+		local tt = {}
+		if file ~= nil then
+			tt = file:read("*all"):split("\n")
+			file:close()
 		end
-	end
-	
-	local file = io.open(g2data, "r")
-	local tt = {}
-	if file ~= nil then
-		tt = file:read("*all"):split("\n")
-		file:close()
-	end
 
-	local order = function(x)
-		if x:split("=")[1] == "Coin" then
-			return 1
-		elseif string.find(x, "_skin") then
-			return 3
-		elseif table.contains(unlock_list, x:split("=")[1]) then
-			return 4
+		local order = function(x)
+			if x:split("=")[1] == "Coin" then
+				return 1
+			elseif string.find(x, "_skin") then
+				return 3
+			elseif table.contains(unlock_list, x:split("=")[1]) then
+				return 4
+			end
+			return 2
 		end
-		return 2
-	end
-	local skin_order = function(x)
-		local index = 0
-		for _,cp in ipairs(g_skin_cp) do
-			for _,c in ipairs(cp) do
-				index = index + 1
-				if x:split("=")[1] == c then
-					return index
+		local skin_order = function(x)
+			local index = 0
+			for _,cp in ipairs(g_skin_cp) do
+				for _,c in ipairs(cp) do
+					index = index + 1
+					if x:split("=")[1] == c then
+						return index
+					end
 				end
 			end
+			return index
 		end
-		return index
-	end
-	local sort = function(a, b)
-		if string.find(a, "_skin") and string.find(b, "_skin") then
-			return skin_order(a) < skin_order(b)
+		local sort = function(a, b)
+			if string.find(a, "_skin") and string.find(b, "_skin") then
+				return skin_order(a) < skin_order(b)
+			end
+			return order(a) < order(b)
 		end
-		return order(a) < order(b)
-	end
-	table.sort(tt, sort)
-	
-	local g2_property = "\n<img src=\"image/mark/@coin.png\">G币 = "
-	
-	for i,a in pairs(tt) do
-		local s = a:split("=")
-		if s[1] == "Coin" then
-			g2_property = g2_property .. s[2] .. "\n\n<b>支援机使用权(35%×1, 25%×3)</b>:"
-		elseif string.find(s[1], "_skin") then
-			if string.find(tt[i-1], "_skin") == nil then
-				g2_property = g2_property .. "\n<b>机体皮肤(25%)</b>:\n"
-			end
-			local n = tonumber(string.sub(s[1], string.len(s[1])))
-			local girl = ""
-			if table.contains({"CHAR_ZAKU_skin2", "SINANJU_skin2"}, s[1]) then
-				girl = "(机娘红桃)"
-			end
-			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. "皮肤" .. string.rep("I", n) .. girl .. ": "
-			if s[2] == "0" then
-				g2_property = g2_property .. "<font color='grey'>未获得</font>"
+		table.sort(tt, sort)
+		
+		local g2_property = "\n<img src=\"image/mark/@coin.png\">G币 = "
+		
+		for i,a in pairs(tt) do
+			local s = a:split("=")
+			if s[1] == "Coin" then
+				g2_property = g2_property .. s[2] .. "\n\n<b>支援机使用权(35%×1, 25%×3)</b>:"
+			elseif string.find(s[1], "_skin") then
+				if string.find(tt[i-1], "_skin") == nil then
+					g2_property = g2_property .. "\n<b>机体皮肤(25%)</b>:\n"
+				end
+				local n = tonumber(string.sub(s[1], string.len(s[1])))
+				local girl = ""
+				if table.contains({"CHAR_ZAKU_skin2", "SINANJU_skin2"}, s[1]) then
+					girl = "(机娘红桃)"
+				end
+				g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. "皮肤" .. string.rep("I", n) .. girl .. ": "
+				if s[2] == "0" then
+					g2_property = g2_property .. "<font color='grey'>未获得</font>"
+				else
+					g2_property = g2_property .. "<font color='red'>已获得</font>"
+				end
+			elseif table.contains(unlock_list, s[1]) then
+				if not table.contains(unlock_list, tt[i-1]:split("=")[1]) then
+					g2_property = g2_property .. "\n<b>解禁机体(15%)</b>:\n"
+				end
+				g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. ": "
+				if s[2] == "0" then
+					g2_property = g2_property .. "<font color='grey'>未解禁</font>"
+				else
+					g2_property = g2_property .. "<font color='red'>已解禁</font>"
+				end
 			else
-				g2_property = g2_property .. "<font color='red'>已获得</font>"
+				g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. " = " .. s[2]
 			end
-		elseif table.contains(unlock_list, s[1]) then
-			if not table.contains(unlock_list, tt[i-1]:split("=")[1]) then
-				g2_property = g2_property .. "\n<b>解禁机体(15%)</b>:\n"
+			if i ~= #tt then
+				g2_property = g2_property .. "\n"
 			end
-			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. ": "
-			if s[2] == "0" then
-				g2_property = g2_property .. "<font color='grey'>未解禁</font>"
-			else
-				g2_property = g2_property .. "<font color='red'>已解禁</font>"
-			end
-		else
-			g2_property = g2_property .. sgs.Sanguosha:translate(s[1]) .. " = " .. s[2]
 		end
-		if i ~= #tt then
-			g2_property = g2_property .. "\n"
-		end
-	end
 
-	sgs.LoadTranslationTable{
-		["itemshow"] = "扭蛋机",
-		["#itemshow"] = "道具数量",
-		["designer:itemshow"] = "高达杀制作组",
-		["cv:itemshow"] = "贴吧：高达杀s吧",
-		["illustrator:itemshow"] = "QQ群：565837324",
-		["itemnum"] = "扭蛋",
-		[":itemnum"] = g2_property,
-		["itemnum_ten"] = "十连抽"
-	}
+		sgs.LoadTranslationTable{
+			["itemshow"] = "扭蛋机",
+			["#itemshow"] = "道具数量",
+			["designer:itemshow"] = "高达杀制作组",
+			["cv:itemshow"] = "贴吧：高达杀s吧",
+			["illustrator:itemshow"] = "QQ群：565837324",
+			["itemnum"] = "扭蛋",
+			[":itemnum"] = g2_property,
+			["itemnum_ten"] = "十连抽"
+		}
+	end
 end
+lucky_translate()
