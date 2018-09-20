@@ -9347,6 +9347,30 @@ extension:insertRelatedSkills("jianhun", "#jianhund2")
 ASTRAY_RED:addSkill(huishou)
 ASTRAY_RED:addSkill(guanglei)
 
+ASTRAY_BLUE = sgs.General(extension, "ASTRAY_BLUE", "ORB", 4, true, false)
+
+--强武:当你造成伤害后，你可以摸两张牌，然后弃置一张牌，你根据弃置牌的类别获得以下效果，直到你的下回合开始前。
+--基本牌：你可以将与伤害牌相同花色的手牌当【挡】使用。
+--锦囊牌：出牌阶段，你使用颜色与X不同的【杀】时无次数限制。（X为你于此阶段使用的上一张【杀】）
+
+--蛇尾:准备阶段开始时，你可以将装备区或判定区里的一张牌当【决斗】使用，目标角色每次须连续打出两张【杀】。
+
+qiangwu = sgs.CreateTriggerSkill{
+	name = "qiangwu",
+	events = {sgs.Damage},
+	on_trigger = function(self, event, player, data)
+	    local room = player:getRoom()
+		local damage = data:toDamage()
+		if room:askForSkillInvoke(player, self:objectName(), data) then
+			player:drawCards(2, self:objectName())
+			if player:canDiscard(player, "he") then
+				local card = room:askForCard(player, "..!", self:objectName(), data)
+				--懒得写了，ZY奆神帮我
+			end
+		end
+	end
+}
+
 STRIKE_NOIR = sgs.General(extension, "STRIKE_NOIR", "OMNI", 4, true, false)
 
 huantongvs = sgs.CreateOneCardViewAsSkill{
