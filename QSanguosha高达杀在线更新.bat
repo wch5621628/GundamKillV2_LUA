@@ -7,6 +7,8 @@
 @echo off
 set "url=https://github.com/wch5621628/GundamKillV2_LUA/raw/master/"
 
+echo Update Started!
+
 :: Update LUA
 set "lua_list=gaoda.lua gaodacard.lua gaodaexcard.lua boss.lua zabing.lua"
 for %%i in (%lua_list%) do (
@@ -26,7 +28,7 @@ for %%i in (%ai_list%) do (
 )
 
 :: Execute QSanguosha.exe after update
-echo "Update Completed!"
+echo Update Completed!
 start QSanguosha.exe
 
 :: Reference: https://www.dostips.com/forum/viewtopic.php?t=8485
