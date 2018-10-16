@@ -103,3 +103,33 @@ sgs.ai_nullification.FinalVent = function(self, card, from, to, positive)
 	end
 	return
 end
+
+function SmartAI:useCardDecade(card, use)
+	if #self.enemies == 0 then return false end
+	use.card = card
+	if use.to then
+		self:sort(self.enemies, "hp")
+		for _,enemy in ipairs(self.enemies) do
+			if enemy:getMark("@duilieB") > 0 and math.mod(card:getNumber(), 2) == 0 and card:getNumber() > 0 then continue end
+			use.to:append(enemy)
+			return
+		end
+	end
+end
+
+sgs.ai_use_priority.Decade = sgs.ai_use_priority.FireAttack + 0.1
+sgs.ai_use_value.Decade = sgs.ai_use_value.FireAttack + 0.1
+sgs.ai_keep_value.Decade = sgs.ai_keep_value.FireAttack + 0.1
+
+sgs.ai_nullification.Decade = function(self, card, from, to, positive)
+	if not positive then
+		if self:isEnemy(to) then
+			return true
+		end
+	else
+		if self:isFriend(to) then
+			return true
+		end
+	end
+	return
+end

@@ -2487,7 +2487,7 @@ huixing = sgs.CreateTriggerSkill{
 				local ids = room:getNCards(1, false)
 				local move = sgs.CardsMoveStruct()
 				move.card_ids = ids
-				move.to = player
+				move.to = nil
 				move.to_place = sgs.Player_PlaceTable
 				move.reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_TURNOVER, player:objectName(), self:objectName(), nil)
 				room:moveCardsAtomic(move, true)
@@ -2495,6 +2495,8 @@ huixing = sgs.CreateTriggerSkill{
 				if card:isRed() then
 					room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
 					player:obtainCard(card)
+				else
+					room:throwCard(card, nil)
 				end
 			end
 		--[[if event == sgs.CardsMoveOneTime then
