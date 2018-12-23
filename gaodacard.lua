@@ -270,6 +270,7 @@ Guard_skill = sgs.CreateTriggerSkill{
 	global = true,
 	priority = -1,
 	can_trigger = function(self, target)
+		if target:getMark("luaqiangwub") > 0 then return false end --强武另行处理
 		for _,card in sgs.qlist(target:getHandcards()) do
 			if card:isKindOf("Guard") then
 				return target and target:isAlive()

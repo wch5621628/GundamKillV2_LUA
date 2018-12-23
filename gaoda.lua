@@ -9357,13 +9357,13 @@ ASTRAY_RED:addSkill(guanglei)
 ASTRAY_BLUE = sgs.General(extension, "ASTRAY_BLUE", "ORB", 4, true, false)
 
 --强武:当你造成伤害后，你可以摸两张牌，然后弃置一张牌，你根据弃置牌的类别获得以下效果，直到你的下回合开始前。
---基本牌：你可以将与伤害牌相同花色的手牌当【挡】使用。
---锦囊牌：出牌阶段，你使用颜色与X不同的【杀】时无次数限制。（X为你于此阶段使用的上一张【杀】）
+--基本牌：你可以将一张黑桃牌当【挡】使用，若转化牌为【杀】，视为反击【挡】。
+--锦囊牌：出牌阶段，你以黑色与红色相间的形式使用【射击】时无次数限制。
 
 --蛇尾:准备阶段开始时，你可以将装备区或判定区里的一张牌当【决斗】使用，目标角色每次须连续打出两张【杀】。
 
-qiangwu = sgs.CreateTriggerSkill{
-	name = "qiangwu",
+luaqiangwu = sgs.CreateTriggerSkill{
+	name = "luaqiangwu",
 	events = {sgs.Damage},
 	on_trigger = function(self, event, player, data)
 	    local room = player:getRoom()
@@ -9371,12 +9371,131 @@ qiangwu = sgs.CreateTriggerSkill{
 		if room:askForSkillInvoke(player, self:objectName(), data) then
 			player:drawCards(2, self:objectName())
 			if player:canDiscard(player, "he") then
-				local card = room:askForCard(player, "..!", self:objectName(), data)
-				--懒得写了，ZY奆神帮我
+				local card = room:askForCard(player, "..!", "@luaqiangwu", data, self:objectName())
+				if card:isKindOf("BasicCard") then
+					room:setPlayerMark(player, "luaqiangwub", 1)
+				elseif card:isKindOf("TrickCard") then
+					room:setPlayerMark(player, "luaqiangwut", 1)
+				end
 			end
 		end
 	end
 }
+
+luaqiangwumark = sgs.CreateTriggerSkill{
+	name = "#luaqiangwumark",
+	events = {sgs.TurnStart, sgs.CardUsed},
+	on_trigger = function(self, event, player, data)
+	    local room = player:getRoom()
+		if event == sgs.TurnStart then
+			room:setPlayerMark(player, "luaqiangwub", 0)
+			room:setPlayerMark(player, "luaqiangwut", 0)
+			room:setPlayerProperty(player, "luaqiangwucolor", sgs.QVariant())
+		else
+			local use = data:toCardUse()
+			if player:getPhase() == sgs.Player_Play and use.card and use.card:isKindOf("Shoot") then
+				local color = "none"
+				if use.card:isBlack() then
+					color = "black"
+				elseif use.card:isRed() then
+					color = "red"
+				end
+				room:setPlayerProperty(player, "luaqiangwucolor", sgs.QVariant(color))
+			end
+		end
+	end
+}
+
+luaqiangwub = sgs.CreateTriggerSkill{
+	name = "#luaqiangwub",
+	events = {sgs.DamageInflicted},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local damage = data:toDamage()		
+		if damage.card and (damage.card:isKindOf("Slash") or damage.card:isKindOf("Shoot") and damage.card:objectName() ~= "pierce_shoot") then
+			
+			if player:getMark("luaqiangwub") == 0 then return false end
+			local can_invoke = false
+			for _,card in sgs.qlist(player:getCards("he")) do
+				if card:getSuit() == sgs.Card_Spade then
+					can_invoke = true
+				end
+			end
+			if not can_invoke then return false end
+			
+			local guard
+			if damage.from then
+				guard = room:askForCard(player, "Guard#.|spade", "@luaqiangwu-Guard:"..damage.card:objectName()..":"..damage.from:objectName(), sgs.QVariant(), sgs.Card_MethodNone, damage.from)
+			else
+				guard = room:askForCard(player, "Guard#.|spade", "@@luaqiangwu-Guard:"..damage.card:objectName(), sgs.QVariant(), sgs.Card_MethodNone, nil)
+			end
+			if guard then
+			
+				if not guard:isKindOf("Guard") then --黑桃反击挡不转化为普通挡
+					local gcard = guard
+					if guard:isKindOf("Slash") then
+						guard = sgs.Sanguosha:cloneCard("counter_guard", gcard:getSuit(), gcard:getNumber())
+						guard:setObjectName("counter_guard")
+					else
+						guard = sgs.Sanguosha:cloneCard("Guard", gcard:getSuit(), gcard:getNumber())
+					end
+					guard:addSubcard(gcard)
+					guard:setSkillName("luaqiangwu")
+				end
+				room:useCard(sgs.CardUseStruct(guard, player, player))
+
+				math.random()
+				if (damage.card:isKindOf("Shoot") or math.random(1, 100) <= 70) then
+					local log = sgs.LogMessage()
+					log.type = "#burstd"
+					log.to:append(damage.to)
+					log.arg = damage.damage
+					log.arg2 = damage.damage - 1
+					room:sendLog(log)
+					damage.damage = damage.damage - 1
+					if damage.damage < 1 then
+						room:setEmotion(player, "skill_nullify")
+						
+						if damage.from and guard:objectName() == "counter_guard" then
+							room:doAnimate(1, player:objectName(), damage.from:objectName())
+							local card = room:askForCard(damage.from, "jink", "@fengong", sgs.QVariant(), sgs.Card_MethodResponse, player, false, self:objectName(), false)
+							if not card then
+								room:damage(sgs.DamageStruct(guard, player, damage.from))
+							end
+						end
+						
+						return true
+					end
+					data:setValue(damage)
+				else
+					local log = sgs.LogMessage()
+					log.type = "#Guard_failed"
+					log.from = player
+					log.card_str = guard:toString()
+					room:sendLog(log)
+				end
+			end
+		end
+	end
+}
+
+luaqiangwut = sgs.CreateTargetModSkill{
+	name = "#luaqiangwut",
+	pattern = "Shoot",
+	residue_func = function(self, player, card)
+		local color = player:property("luaqiangwucolor"):toString()
+		if player and player:getMark("luaqiangwut") > 0 and ((card:isBlack() and color == "red") or (card:isRed() and color == "black")) then
+			return 998
+		else
+			return 0
+		end
+	end
+}
+
+ASTRAY_BLUE:addSkill(luaqiangwu)
+ASTRAY_BLUE:addSkill(luaqiangwumark)
+ASTRAY_BLUE:addSkill(luaqiangwub)
+ASTRAY_BLUE:addSkill(luaqiangwut)
 
 STRIKE_NOIR = sgs.General(extension, "STRIKE_NOIR", "OMNI", 4, true, false)
 
