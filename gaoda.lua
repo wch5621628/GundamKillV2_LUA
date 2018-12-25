@@ -522,7 +522,8 @@ generalName2BGM = function(name)
 		{"BGM28", "LUPUS", "REX"},
 		{"BGM29", "STRIKE_NOIR"},
 		{"BGM"..math.random(30, 31), "G_SELF", "G_SELF_PP"},
-		{"BGM"..math.random(32, 34), "ASTRAY_RED"},
+		{"BGM"..(32+2*math.random(0, 1)), "ASTRAY_RED"},
+		{"BGM"..math.random(33, 34), "ASTRAY_BLUE"},
 		
 		{"BGM99", "itemshow"}
 	}
@@ -556,7 +557,7 @@ gdsbgm = sgs.CreateTriggerSkill{
 		if room:getTag("gdsbgm"):toBool() then return false end
 		room:setTag("gdsbgm", sgs.QVariant(true))
 		local name
-		if player:getGameMode() == "_mini_1" then
+		if room:getOwner():getGameMode() == "_mini_1" then
 			name = generalName2BGM(room:getOwner():getGeneralName()) --扭蛋BGM
 		else
 			name = generalName2BGM(room:getLord():getGeneralName())
@@ -9492,10 +9493,114 @@ luaqiangwut = sgs.CreateTargetModSkill{
 	end
 }
 
+sheweivs = sgs.CreateZeroCardViewAsSkill{
+	name = "shewei",
+	response_pattern = "@@shewei",
+	view_as = function(self)
+	    local id = sgs.Self:property("shewei"):toInt()
+		local acard = sgs.Sanguosha:cloneCard("duel", sgs.Card_SuitToBeDecided, -1)
+		acard:addSubcard(id)
+		acard:setSkillName(self:objectName())
+		return acard
+	end
+}
+
+shewei = sgs.CreateTriggerSkill{
+	name = "shewei",
+	events = {sgs.EventPhaseStart},
+	view_as_skill = sheweivs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if event == sgs.EventPhaseStart then
+			if player:getPhase() == sgs.Player_Start and not player:getCards("ej"):isEmpty() and room:askForSkillInvoke(player, self:objectName(), data) then
+				local id = room:askForCardChosen(player, player, "ej", self:objectName())
+				if id ~= -1 then
+					room:setPlayerProperty(player, "shewei", sgs.QVariant(id))
+					room:askForUseCard(player, "@@shewei", "@shewei")
+					room:setPlayerProperty(player, "shewei", sgs.QVariant())
+				end
+			end
+		end
+	end
+}
+
+sheweie = sgs.CreateTriggerSkill{
+	name = "#sheweie",
+	frequency = sgs.Skill_Compulsory,
+	events = {sgs.CardEffected},
+	priority = 2,
+	can_trigger = function(self, target)
+		return target
+	end,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local effect = data:toCardEffect()
+		local can_invoke = false
+		if effect.card and effect.card:isKindOf("Duel") then				
+			if effect.from and effect.from:isAlive() and effect.from:property("shewei"):toInt() > 0 and effect.card:getSkillName() == "shewei" then
+				can_invoke = true
+			end
+			if effect.to and effect.to:isAlive() and effect.to:hasSkill("wushuang") then
+				can_invoke = true
+			end
+		end
+		if not can_invoke then return false end
+		if effect.card:isKindOf("Duel") then
+			if room:isCanceled(effect) then
+				effect.to:setFlags("Global_NonSkillNullify")
+				return true
+			end
+			if effect.to:isAlive() then
+				local second = effect.from
+				local first = effect.to
+				room:setEmotion(first, "duel")
+				room:setEmotion(second, "duel")
+				while true do
+					if not first:isAlive() then
+						break
+					end
+					local slash
+					if second:hasSkill("wushuang") or (second:property("shewei"):toInt() > 0 and effect.card:getSkillName() == "shewei") then
+						slash = room:askForCard(first,"slash","@wushuang-slash-1:" .. second:objectName(),data,sgs.Card_MethodResponse, second)
+						if slash == nil then
+							break
+						end
+
+						slash = room:askForCard(first, "slash", "@wushuang-slash-2:" .. second:objectName(),data,sgs.Card_MethodResponse,second)
+						if slash == nil then
+							break
+						end
+					else
+						slash = room:askForCard(first,"slash","duel-slash:" .. second:objectName(),data,sgs.Card_MethodResponse,second)
+						if slash == nil then
+							break
+						end
+					end
+					local temp = first
+					first = second
+					second = temp
+				end
+				local damage = sgs.DamageStruct(effect.card, second, first)
+				if second:isDead() then
+					damage = sgs.DamageStruct(effect.card, nil, first)
+				end
+				if second:objectName() ~= effect.from:objectName() then
+					damage.by_user = false
+				end
+				room:damage(damage)
+			end
+			room:setTag("SkipGameRule",sgs.QVariant(true))
+		end
+		return false
+	end
+}
+
 ASTRAY_BLUE:addSkill(luaqiangwu)
 ASTRAY_BLUE:addSkill(luaqiangwumark)
 ASTRAY_BLUE:addSkill(luaqiangwub)
 ASTRAY_BLUE:addSkill(luaqiangwut)
+ASTRAY_BLUE:addSkill(shewei)
+ASTRAY_BLUE:addSkill(sheweie)
 
 STRIKE_NOIR = sgs.General(extension, "STRIKE_NOIR", "OMNI", 4, true, false)
 
