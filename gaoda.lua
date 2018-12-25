@@ -9357,12 +9357,6 @@ ASTRAY_RED:addSkill(guanglei)
 
 ASTRAY_BLUE = sgs.General(extension, "ASTRAY_BLUE", "ORB", 4, true, false)
 
---强武:当你造成伤害后，你可以摸两张牌，然后弃置一张牌，你根据弃置牌的类别获得以下效果，直到你的下回合开始前。
---基本牌：你可以将一张黑桃牌当【挡】使用，若转化牌为【杀】，视为反击【挡】。
---锦囊牌：出牌阶段，你以黑色与红色相间的形式使用【射击】时无次数限制。
-
---蛇尾:准备阶段开始时，你可以将装备区或判定区里的一张牌当【决斗】使用，目标角色每次须连续打出两张【杀】。
-
 luaqiangwu = sgs.CreateTriggerSkill{
 	name = "luaqiangwu",
 	events = {sgs.Damage},
@@ -9370,9 +9364,9 @@ luaqiangwu = sgs.CreateTriggerSkill{
 	    local room = player:getRoom()
 		local damage = data:toDamage()
 		if room:askForSkillInvoke(player, self:objectName(), data) then
-			player:drawCards(2, self:objectName())
+			player:drawCards(1, self:objectName())
 			if player:canDiscard(player, "he") then
-				local card = room:askForCard(player, "..!", "@luaqiangwu", data, self:objectName())
+				local card = room:askForCard(player, "..", "@luaqiangwu", data, self:objectName())
 				if card:isKindOf("BasicCard") then
 					room:setPlayerMark(player, "luaqiangwub", 1)
 				elseif card:isKindOf("TrickCard") then
@@ -13263,6 +13257,24 @@ sgs.LoadTranslationTable{
 	["$guanglei2"] = "俺はあいつらを認めねぇ…だから負けられねぇんだ!",
 	["$guanglei3"] = "舐めんなよ! 戦艦10隻来たって、レッドフレームは守り切るぜ",
 	["$guanglei4"] = "アンタらが歴戦の手練なら、俺は火事場の天才だゼ!!",
+	
+	["ASTRAY_BLUE"] = "蓝异端2L",
+	["#ASTRAY_BLUE"] = "最强佣兵",
+	["~ASTRAY_BLUE"] = "",
+	["designer:ASTRAY_BLUE"] = "高达杀制作组",
+	["cv:ASTRAY_BLUE"] = "叢雲·劾",
+	["illustrator:ASTRAY_BLUE"] = "wch5621628",
+	["luaqiangwu"] = "强武",
+	[":luaqiangwu"] = "当你造成伤害后，你可以摸一张牌，然后可以弃置一张牌，根据弃置牌的类别获得以下效果，直到你的下回合开始前。\
+基本牌：你可以将一张黑桃牌当【挡】使用，若转化牌为【杀】，视为反击【挡】。\
+锦囊牌：出牌阶段，你以<b>黑色</b>与<font color='red'><b>红色</b></font>相间的形式使用【射击】时无次数限制。",
+	["@luaqiangwu"] = "你可弃置一张牌，根据牌类获得效果：<br>①基本牌：<font color='black'>♠</font>牌当【挡】使用，若转化牌为【杀】，视为反击【挡】<br>②锦囊牌：出牌阶段，你以<font color='black'><b>黑色</b></font>与<font color='red'><b>红色</b></font>相间的形式使用【射击】时无次数限制",
+	["@luaqiangwu-Guard"] = "%dest 令你受到【%src】的伤害，请使用一张【档】<br>强武：你可以将一张<font color='black'>♠</font>牌当【挡】使用",
+	["@@luaqiangwu-Guard"] = "你受到【%src】造成的伤害，请使用一张【档】<br>强武：你可以将一张<font color='black'>♠</font>牌当【挡】使用",
+	["shewei"] = "蛇尾",
+	[":shewei"] = "准备阶段开始时，你可以将装备区或判定区里的一张牌当【决斗】使用，目标角色每次须连续打出两张【杀】。",
+	["@shewei"] = "请选择【决斗】的目标",
+	["~shewei"] = "选择目标→确定",
 	
 	["STRIKE_NOIR"] = "漆黑突击",
 	["#STRIKE_NOIR"] = "幻痛之袭",
