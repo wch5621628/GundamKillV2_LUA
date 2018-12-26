@@ -9367,10 +9367,12 @@ luaqiangwu = sgs.CreateTriggerSkill{
 			player:drawCards(1, self:objectName())
 			if player:canDiscard(player, "he") then
 				local card = room:askForCard(player, "..", "@luaqiangwu", data, self:objectName())
-				if card:isKindOf("BasicCard") then
-					room:setPlayerMark(player, "luaqiangwub", 1)
-				elseif card:isKindOf("TrickCard") then
-					room:setPlayerMark(player, "luaqiangwut", 1)
+				if card then
+					if card:isKindOf("BasicCard") then
+						room:setPlayerMark(player, "luaqiangwub", 1)
+					elseif card:isKindOf("TrickCard") then
+						room:setPlayerMark(player, "luaqiangwut", 1)
+					end
 				end
 			end
 		end
@@ -9507,6 +9509,7 @@ shewei = sgs.CreateTriggerSkill{
 		local room = player:getRoom()
 		if event == sgs.EventPhaseStart then
 			if player:getPhase() == sgs.Player_Start and not player:getCards("ej"):isEmpty() and room:askForSkillInvoke(player, self:objectName(), data) then
+				--BUG:Make AI Efficient
 				local id = room:askForCardChosen(player, player, "ej", self:objectName())
 				if id ~= -1 then
 					room:setPlayerProperty(player, "shewei", sgs.QVariant(id))

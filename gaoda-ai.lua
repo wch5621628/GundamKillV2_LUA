@@ -3127,6 +3127,97 @@ function sgs.ai_cardneed.jianhun(to, card)
 	return card:isRed()
 end
 
+--蓝异端
+sgs.ai_skill_invoke.luaqiangwu = function(self, data)
+	return true
+end
+
+sgs.ai_skill_cardask["@luaqiangwu"] = function(self)
+	local cards = self.player:getCards("he")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards, true)
+	
+	local black_shoot, red_shoot = 0, 0
+	local color = self.player:property("luaqiangwucolor"):toString()
+	local choice = ""
+	
+	for _,card in ipairs(cards) do
+		if card:isKindOf("Shoot") and self.player:getMark("luaqiangwut") == 0 then
+			if card:isBlack() then
+				black_shoot = 1
+			elseif card:isRed() then
+				red_shoot = 1
+			end
+			if (black_shoot == 1 and red_shoot == 1) or (black_shoot == 1 and color == "red") or (red_shoot == 1 and color == "black") then
+				choice = "TrickCard"
+				break
+			end
+		end
+		if card:getSuit() == sgs.Card_Spade and self.player:getMark("luaqiangwub") == 0 then
+			choice = "BasicCard"
+			break
+		end
+	end
+	
+	if choice == "" then
+		return "."
+	end
+	
+	for _,card in ipairs(cards) do
+		if card:isKindOf(choice) then
+			if (choice == "BasicCard" and card:getSuit() == sgs.Card_Spade and self:getSuitNum("spade", true, self.player) == 1) or
+				(choice == "TrickCard" and card:isKindOf("Shoot") and self:getCardsNum("Shoot") == 1) then continue end
+			return card:getEffectiveId()
+		end
+	end
+	
+	return "."
+end
+
+sgs.ai_skill_invoke.shewei = function(self, data)
+	local duel = sgs.Sanguosha:cloneCard("duel")
+	for _, enemy in ipairs(self.enemies) do
+		if (not enemy:isProhibited(enemy, duel)) then
+			return true
+		end
+	end
+	return false
+end
+
+sgs.ai_skill_cardchosen["shewei"] = function(self, who, flags)
+	local cards = self.player:getCards("j")
+	if not cards:isEmpty() then
+		cards = sgs.QList2Table(cards)
+		self:sortByUseValue(cards, false)
+		return cards[1]
+	else
+		cards = self.player:getCards("e")
+		cards = sgs.QList2Table(cards)
+		self:sortByKeepValue(cards, true)
+		return cards[1]
+	end
+	return nil
+end
+--BUG:Make AI Efficient
+sgs.ai_skill_use["@@shewei"] = function(self,prompt)
+	self:updatePlayers()
+	local duel = sgs.Sanguosha:cloneCard("duel")
+	local id = self.player:property("shewei"):toInt()
+	duel:addSubcard(id)
+	self:sort(self.enemies, "handcard")
+	local targets = {}
+	for _, enemy in ipairs(self.enemies) do
+		if (not enemy:isProhibited(enemy, duel)) then
+			if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, duel) then break end
+			table.insert(targets, enemy:objectName())
+		end
+	end
+	if #targets > 0 then
+		return ("duel:shewei[%s:%s]=%s->%s"):format(duel:getSuitString(), duel:getNumberString(), id, table.concat(targets, "+"))
+	end
+	return "."
+end
+
 --漆黑突击
 sgs.ai_skill_use["@@huantong"] = function(self, prompt)
     self:updatePlayers()
