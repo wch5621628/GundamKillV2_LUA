@@ -9364,6 +9364,7 @@ luaqiangwu = sgs.CreateTriggerSkill{
 	    local room = player:getRoom()
 		local damage = data:toDamage()
 		if room:askForSkillInvoke(player, self:objectName(), data) then
+			room:broadcastSkillInvoke(self:objectName())
 			player:drawCards(1, self:objectName())
 			if player:canDiscard(player, "he") then
 				local card = room:askForCard(player, "..", "@luaqiangwu", data, self:objectName())
@@ -9509,7 +9510,6 @@ shewei = sgs.CreateTriggerSkill{
 		local room = player:getRoom()
 		if event == sgs.EventPhaseStart then
 			if player:getPhase() == sgs.Player_Start and not player:getCards("ej"):isEmpty() and room:askForSkillInvoke(player, self:objectName(), data) then
-				--BUG:Make AI Efficient
 				local id = room:askForCardChosen(player, player, "ej", self:objectName())
 				if id ~= -1 then
 					room:setPlayerProperty(player, "shewei", sgs.QVariant(id))
@@ -13263,7 +13263,7 @@ sgs.LoadTranslationTable{
 	
 	["ASTRAY_BLUE"] = "蓝异端2L",
 	["#ASTRAY_BLUE"] = "最强佣兵",
-	["~ASTRAY_BLUE"] = "",
+	["~ASTRAY_BLUE"] = "サーペントテールの名が聞いて呆れるな、酷い有り様だ",
 	["designer:ASTRAY_BLUE"] = "高达杀制作组",
 	["cv:ASTRAY_BLUE"] = "叢雲·劾",
 	["illustrator:ASTRAY_BLUE"] = "wch5621628",
@@ -13278,6 +13278,13 @@ sgs.LoadTranslationTable{
 	[":shewei"] = "准备阶段开始时，你可以将装备区或判定区里的一张牌当【决斗】使用，目标角色每次须连续打出两张【杀】。",
 	["@shewei"] = "请选择【决斗】的目标",
 	["~shewei"] = "选择目标→确定",
+	["$luaqiangwu1"] = "悪いが、破壊させて貰う!",
+	["$luaqiangwu2"] = "勝負あったな",
+	["$luaqiangwu3"] = "残念だが、お前の負けだ。",
+	["$luaqiangwu4"] = "消えるのはお前の方だ!",
+	["$shewei1"] = "これがサーペントテールだ。",
+	["$shewei2"] = "サーペントテールと知って掛かってくるならば、容赦はしない",
+	["$shewei3"] = "敵は倒せるときに倒す、それが傭兵のやり方だ",
 	
 	["STRIKE_NOIR"] = "漆黑突击",
 	["#STRIKE_NOIR"] = "幻痛之袭",
