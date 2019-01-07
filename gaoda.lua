@@ -524,6 +524,7 @@ generalName2BGM = function(name)
 		{"BGM"..math.random(30, 31), "G_SELF", "G_SELF_PP"},
 		{"BGM"..(32+2*math.random(0, 1)), "ASTRAY_RED"},
 		{"BGM"..math.random(33, 34), "ASTRAY_BLUE"},
+		{"BGM35", "F91"},
 		
 		{"BGM99", "itemshow"}
 	}
@@ -2863,6 +2864,153 @@ leishe = sgs.CreateTriggerSkill{
 
 HYAKU_SHIKI:addSkill(luashipo)
 HYAKU_SHIKI:addSkill(leishe)
+
+F91 = sgs.General(extension, "F91", "EFSF", 3, true, false)
+
+fangcheng = sgs.CreateTriggerSkill{
+	name = "fangcheng",
+	frequency = sgs.Skill_Compulsory,
+	events = {sgs.BeforeCardsMove, sgs.CardsMoveOneTime},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local move = data:toMoveOneTime()
+		if event == sgs.BeforeCardsMove then
+			if move.from == nil or move.from:objectName() == player:objectName() then return false end
+			if move.to_place == sgs.Player_DiscardPile and (bit32.band(move.reason.m_reason, sgs.CardMoveReason_S_MASK_BASIC_REASON) == sgs.CardMoveReason_S_REASON_DISCARD or move.reason.m_reason == sgs.CardMoveReason_S_REASON_JUDGEDONE) then
+				local card_ids = sgs.IntList()
+				local i = 0
+				for _, card_id in sgs.qlist(move.card_ids) do
+					local card = sgs.Sanguosha:getCard(card_id)
+					if (card:getSuit() == sgs.Card_Diamond or card:getNumber() == 9 or card:getNumber() == 1) and ((move.reason.m_reason == sgs.CardMoveReason_S_REASON_JUDGEDONE and move.from_places:at(i) == sgs.Player_PlaceJudge and move.to_place == sgs.Player_DiscardPile) or (move.reason.m_reason ~= sgs.CardMoveReason_S_REASON_JUDGEDONE and room:getCardOwner(card_id):objectName() == move.from:objectName() and (move.from_places:at(i) == sgs.Player_PlaceHand or move.from_places:at(i) == sgs.Player_PlaceEquip))) then
+						card_ids:append(card_id)
+					end
+					i = i + 1
+				end
+				if card_ids:isEmpty() then
+					return false
+				else
+					room:sendCompulsoryTriggerLog(player, self:objectName())
+					room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
+					move:removeCardIds(card_ids)
+					data:setValue(move)
+					local dummy = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+					dummy:addSubcards(card_ids)
+					room:moveCardTo(dummy, player, sgs.Player_PlaceHand, move.reason, true)
+					player:gainMark("@canying", card_ids:length())
+				end
+			end
+		else
+			if move.from and move.from:objectName() == player:objectName() and move.from_places:contains(sgs.Player_PlaceHand) and move.is_last_handcard then
+				local n = player:getMark("@canying")
+				if n > 0 then
+					room:sendCompulsoryTriggerLog(player, self:objectName())
+					room:broadcastSkillInvoke(self:objectName(), math.random(3, 4))
+					player:loseAllMarks("@canying")
+					player:drawCards(n, self:objectName())
+				end
+			end
+		end
+	end
+}
+
+canyingvs = sgs.CreateOneCardViewAsSkill{
+	name = "canying",
+	response_or_use = true,
+	view_filter = function(self, card)
+		local pattern = sgs.Sanguosha:getCurrentCardUsePattern()
+		if pattern == "jink" then
+			return card:isRed() and not card:isEquipped()
+		else
+			return card:isBlack() and not card:isEquipped()
+		end
+	end,
+	view_as = function(self, card)
+		local pattern = sgs.Sanguosha:getCurrentCardUsePattern()
+		if pattern == "jink" then
+			local jink = sgs.Sanguosha:cloneCard("jink", card:getSuit(), card:getNumber())
+			jink:setSkillName("canyingcard")
+			jink:addSubcard(card)
+			return jink
+		else
+			local slash = sgs.Sanguosha:cloneCard("slash", card:getSuit(), card:getNumber())
+			slash:setSkillName("canyingcard")
+			slash:addSubcard(card)
+			return slash
+		end
+	end,
+	enabled_at_play = function(self, player)
+		return false
+	end,
+	enabled_at_response = function(self, player, pattern)
+		return player:getMark("@canying") > 0 and not player:isKongcheng() and (pattern == "jink" or pattern == "@@canying")
+	end
+}
+
+canying = sgs.CreateTriggerSkill{
+	name = "canying",
+	events = {sgs.PreCardUsed, sgs.PreCardResponded, sgs.Damaged},
+	view_as_skill = canyingvs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if event == sgs.PreCardUsed or event == sgs.PreCardResponded then
+			local card = nil
+			if event == sgs.PreCardUsed then
+				card = data:toCardUse().card
+			else
+				card = data:toCardResponse().m_card
+			end
+			if card and card:getSkillName() == "canyingcard" then
+				player:loseMark("@canying")
+				
+				if card:isKindOf("Jink") then
+					room:broadcastSkillInvoke(self:objectName(), math.random(2, 4))
+				else
+					room:broadcastSkillInvoke(self:objectName(), math.random(5, 7))
+				end
+			end
+		else
+			local damage = data:toDamage()
+			room:broadcastSkillInvoke(self:objectName(), 1)
+			player:gainMark("@canying", damage.damage)
+		end
+	end
+}
+
+canying_slash = sgs.CreateTriggerSkill{
+	name = "#canying_slash",
+	events = {sgs.EventPhaseStart},
+	can_trigger = function(self, player)
+		return true
+	end,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getPhase() == sgs.Player_Finish then
+			local splayers = room:findPlayersBySkillName("canying")
+			for _,splayer in sgs.qlist(splayers) do
+				if splayer:objectName() ~= player:objectName() and splayer:getMark("@canying") > 0 and splayer:getMark("shibei") > 0 and not splayer:isKongcheng() then
+					room:askForUseCard(splayer, "@@canying", "#canying")
+				end
+			end
+		end
+	end
+}
+
+canying_d = sgs.CreateTargetModSkill{
+	name = "#canying_d",
+	pattern = "Slash",
+	distance_limit_func = function(self, player, card)
+		if card and card:getSkillName() == "canyingcard" then
+			return 998
+		end
+	end
+}
+
+F91:addSkill(fangcheng)
+F91:addSkill(canying)
+F91:addSkill(canying_slash)
+F91:addSkill(canying_d)
+extension:insertRelatedSkills("canying", "#canying_slash")
+extension:insertRelatedSkills("canying", "#canying_d")
 
 UNICORN = sgs.General(extension, "UNICORN", "EFSF", 4, true, false)
 
@@ -12168,6 +12316,7 @@ sgs.LoadTranslationTable{
 	["BGM32"] = "♪ 赤い一撃",
 	["BGM33"] = "♪ ミッション開始",
 	["BGM34"] = "♪ Zips",
+	["BGM35"] = "♪ ETERNAL WIND〜ほほえみは光る風の中〜",
 	
 	["BGM99"] = "♪ いけないボーダーライン",
 	
@@ -12535,7 +12684,7 @@ sgs.LoadTranslationTable{
 	["~HYAKU_SHIKI"] = "家族共々死刑になるぞ!停戦信号の見落としは!",
 	["designer:HYAKU_SHIKI"] = "高达杀制作组",
 	["cv:HYAKU_SHIKI"] = "古华多罗·巴兹纳",
-	["illustrator:HYAKU_SHIKI"] = "VerBiKeo",
+	["illustrator:HYAKU_SHIKI"] = "VerBiKeo（等神）",
 	["luashipo"] = "识破",
 	[":luashipo"] = "出牌阶段，你可以将一张除【无懈可击】外的锦囊牌置于你的武将牌上，称为<b>“历战”</b>（至多三张）。你可以将一张<b>“历战”</b>牌当【无懈可击】使用。",
 	["lizhan"] = "历战",
@@ -12549,6 +12698,31 @@ sgs.LoadTranslationTable{
 	["$leishe1"] = "各モビルスーツはメガ・バズーカ・ランチャーの射線上に近づくな!",
 	["$leishe2"] = "メガ・バズーカ・ランチャーを射出してくれ。聞こえるか!?",
 	["$leishe3"] = "全パワーを解放!",
+	
+	["#F91"] = "永恒之风",
+	["~F91"] = "父さん…僕どうすればいいんだ…!",
+	["designer:F91"] = "高达杀制作组",
+	["cv:F91"] = "西布克·亚诺",
+	["illustrator:F91"] = "wch5621628",
+	["fangcheng"] = "方程",
+	[":fangcheng"] = "<b><font color='blue'>锁定技，</font></b>当其他角色的方块牌或点数为9、A的牌，因弃置或判定而置入弃牌堆时，你获得此牌及等量<b>“残影”</b>标记；当你失去最后的手牌后，你弃置所有<b>“残影”</b>标记并摸等量的牌。",
+	["canying"] = "残影",
+	[":canying"] = "<img src=\"image/mark/@canying.png\">当你受到1点伤害后，你获得1个<b>“残影”</b>标记。你可以弃置1个<b>“残影”</b>标记并将一张<font color='red'><b>红色</b></font>手牌当【闪】使用或打出。其他角色的结束阶段开始时，若你于此回合受到过伤害，你可以弃置1个<b>“残影”</b>标记并将一张<b>黑色</b>手牌当【杀】使用（无距离限制）。",
+	["@canying"] = "残影",
+	["canyingcard"] = "残影",
+	["#canying"] = "残影：请选择【杀】的目标角色",
+	["~canying"] = "选择一张黑色手牌→选择目标→确定",
+	["$fangcheng1"] = "このバイオセンサーが…僕のバイオリズムとあってるかな…",
+	["$fangcheng2"] = "要するに、感じろってこと?",
+	["$fangcheng3"] = "うおぉぉぉぉ!",
+	["$fangcheng4"] = "セシリー!",
+	["$canying1"] = "見えた!",
+	["$canying2"] = "逃げまわりゃあ…死にはしない…!",
+	["$canying3"] = "抵抗するんじゃない!いっちゃえよ!",
+	["$canying4"] = "下がれって言ってるじゃないか!",
+	["$canying5"] = "なんとぉ!",
+	["$canying6"] = "こんな所にノコノコ来るから!",
+	["$canying7"] = "それで帰れるはずだ!出てけよ!",
 	
 	["SHINING"] = "闪光",
 	["#SHINING"] = "天降的战士",
@@ -13263,7 +13437,8 @@ sgs.LoadTranslationTable{
 	
 	["ASTRAY_BLUE"] = "蓝异端2L",
 	["#ASTRAY_BLUE"] = "最强佣兵",
-	["~ASTRAY_BLUE"] = "サーペントテールの名が聞いて呆れるな、酷い有り様だ",
+	["~ASTRAY_BLUE"] = "サーペントテールの名が聞いて呆れるな\
+、酷い有り様だ",
 	["designer:ASTRAY_BLUE"] = "高达杀制作组",
 	["cv:ASTRAY_BLUE"] = "叢雲·劾",
 	["illustrator:ASTRAY_BLUE"] = "wch5621628",

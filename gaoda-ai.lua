@@ -1743,6 +1743,49 @@ sgs.ai_use_value["leishe"] = 2.5
 sgs.ai_use_priority["leishe"] = sgs.ai_use_value.Slash - 0.1
 sgs.dynamic_value.damage_card["leishe"] = true
 
+--F91
+sgs.ai_view_as.canying = function(card, player, card_place)
+	local suit = card:getSuitString()
+	local number = card:getNumberString()
+	local card_id = card:getEffectiveId()
+	local pattern = sgs.Sanguosha:getCurrentCardUsePattern()
+	if pattern == "jink" and player:getMark("@canying") > 0 and card_place == sgs.Player_PlaceHand and card:isRed() and not card:isKindOf("Peach") then
+		for _,c in sgs.qlist(player:getHandcards()) do
+			if c:isKindOf("Jink") then
+				return "."
+			end
+		end
+		return ("jink:canying[%s:%s]=%d"):format(suit, number, card_id)
+	end
+end
+
+sgs.ai_skill_use["@@canying"] = function(self, prompt)
+    self:updatePlayers()
+	self:sort(self.enemies, "defenseSlash")
+	local targets = {}
+	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuitBlack, 0)
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:canSlash(enemy) and not self:slashProhibit(slash, enemy) then
+			if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, slash) then break end
+			table.insert(targets, enemy:objectName())
+		end
+	end
+	if #targets > 0 then
+		local cards = self.player:getCards("h")
+		cards = sgs.QList2Table(cards)
+		self:sortByUseValue(cards, true)
+		for _,card in ipairs(cards) do
+			if card:isBlack() and not (self.player:getHp() == 1 and card:isKindOf("Analeptic")) then
+				return ("slash:canying[%s:%s]=%d->%s"):format(card:getSuitString(), card:getNumberString(), card:getEffectiveId(), table.concat(targets, "+"))
+			end
+		end
+	else
+		return "."
+	end
+	return "."
+end
+
+--闪光
 sgs.ai_skill_cardask["@@shanguang"] = function(self, data)
 	local source = data:toPlayer()
 	local player = self.player
@@ -1790,7 +1833,6 @@ sgs.ai_skill_cardask["@@shanguang"] = function(self, data)
 	if not card_id then return "." else return "$" .. card_id end
 end
 
---闪光
 local shanguang_skill = {}
 shanguang_skill.name = "shanguang"
 table.insert(sgs.ai_skills, shanguang_skill)
@@ -1930,7 +1972,7 @@ end
 sgs.ai_view_as.liuxing = function(card, player, card_place)
 	local usereason = sgs.Sanguosha:getCurrentCardUseReason()
 	if usereason ~= sgs.CardUseStruct_CARD_USE_REASON_RESPONSE_USE then return false end
-	if card_place ~= sgs.Player_PlaceEquip and player:getHandcardNum() >= 2 then
+	if card_place == sgs.Player_PlaceHand and player:getHandcardNum() >= 2 then
 		local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_SuitToBeDecided, -1)
 		local id1
 		local id2
@@ -3142,7 +3184,7 @@ sgs.ai_skill_cardask["@luaqiangwu"] = function(self)
 	local choice = ""
 	
 	for _,card in ipairs(cards) do
-		if card:isKindOf("Shoot") and self.player:getMark("luaqiangwut") == 0 then
+		if card:isKindOf("Shoot") and self.player:getMark("luaqiangwut") == 0 and self.player:getPhase() == sgs.Player_Play then
 			if card:isBlack() then
 				black_shoot = 1
 			elseif card:isRed() then
@@ -3198,7 +3240,7 @@ sgs.ai_skill_cardchosen["shewei"] = function(self, who, flags)
 	end
 	return nil
 end
---BUG:Make AI Efficient
+
 sgs.ai_skill_use["@@shewei"] = function(self,prompt)
 	self:updatePlayers()
 	local duel = sgs.Sanguosha:cloneCard("duel")
@@ -4109,7 +4151,7 @@ sgs.ai_view_as.huanse = function(card, player, card_place)
 	local suit = card:getSuitString()
 	local number = card:getNumberString()
 	local card_id = card:getEffectiveId()
-	if card_place == sgs.Player_PlaceHand then
+	if player:getMark("G_SELF_SPACE") > 0 and card_place == sgs.Player_PlaceHand then
 		if card:isKindOf("Jink") then
 			return ("nullification:G_SELF_SPACE_skill[%s:%s]=%d"):format(suit, number, card_id)
 		elseif card:isKindOf("Nullification") then
@@ -4150,7 +4192,7 @@ sgs.ai_view_as.huancai = function(card, player, card_place)
 	local suit = card:getSuitString()
 	local number = card:getNumberString()
 	local card_id = card:getEffectiveId()
-	if card_place == sgs.Player_PlaceHand then
+	if player:getMark("G_SELF_SPACE") > 0 and card_place == sgs.Player_PlaceHand then
 		if card:isKindOf("Jink") then
 			return ("nullification:G_SELF_SPACE_skill[%s:%s]=%d"):format(suit, number, card_id)
 		elseif card:isKindOf("Nullification") then
