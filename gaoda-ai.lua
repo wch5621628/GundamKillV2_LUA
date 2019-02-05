@@ -1898,6 +1898,142 @@ sgs.ai_skill_invoke.chaojimoshi = function(self, data)
 	return true
 end
 
+function sgs.ai_cardneed.shanguang(to, card)
+	return card:isKindOf("Jink")
+end
+
+--神高达
+sgs.ai_skill_cardask["@@shenzhang"] = function(self, data)
+	local shanguang = sgs.ai_skill_cardask["@@shanguang"]
+	return shanguang(self, data)
+end
+
+local shenzhang_skill = {}
+shenzhang_skill.name = "shenzhang"
+table.insert(sgs.ai_skills, shenzhang_skill)
+shenzhang_skill.getTurnUseCard = function(self, inclusive)
+	if not self.player:hasUsed("#shenzhang") then
+		for _, enemy in ipairs(self.enemies) do
+			if self.player:inMyAttackRange(enemy) then
+				local cards = self.player:getCards("he")
+				cards = sgs.QList2Table(cards)
+				self:sortByUseValue(cards)
+				for _,card in ipairs(cards) do
+					if card:getSuit() == sgs.Card_Heart and not (isCard("Peach", card, self.player) and self:getCardsNum("Peach") == 1) and not isCard("ExNihilo", card, self.player) then
+						return sgs.Card_Parse("#shenzhang:.:")
+					end
+				end
+			end
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#shenzhang"] = function(card, use, self)
+	self:sort(self.enemies, "hp")
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:inMyAttackRange(enemy) then
+			local cards = self.player:getCards("he")
+			cards = sgs.QList2Table(cards)
+			self:sortByUseValue(cards)
+			for _,card in ipairs(cards) do
+				if card:getSuit() == sgs.Card_Heart and not (isCard("Peach", card, self.player) and self:getCardsNum("Peach") == 1) and not isCard("ExNihilo", card, self.player) then
+					use.card = sgs.Card_Parse("#shenzhang:"..card:getId()..":")
+					if use.to then use.to:append(enemy) end
+					return
+				end
+			end
+		end
+	end
+end
+
+sgs.ai_use_value["shenzhang"] = sgs.ai_use_value.Slash + 1
+sgs.ai_use_priority["shenzhang"] = sgs.ai_use_priority.Slash + 1
+
+sgs.ai_skill_invoke.aoyi = function(self, data)
+	return true
+end
+
+sgs.ai_skill_use["@@aoyi"] = function(self, prompt)
+    self:updatePlayers()
+	self:sort(self.enemies, "defenseSlash")
+	local targets = {}
+	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuitRed, 0)
+	for _, enemy in ipairs(self.enemies) do
+		if self.player:canSlash(enemy) and not self:slashProhibit(slash, enemy) then
+			if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, slash) then break end
+			table.insert(targets, enemy:objectName())
+		end
+	end
+	if #targets > 0 then
+		local cards = self.player:getCards("h")
+		cards = sgs.QList2Table(cards)
+		self:sortByUseValue(cards, true)
+		for _,card in ipairs(cards) do
+			if card:isRed() and not (self.player:getHp() == 1 and (card:isKindOf("Analeptic") or card:isKindOf("Peach"))) then
+				return ("slash:aoyi[%s:%s]=%d->%s"):format(card:getSuitString(), card:getNumberString(), card:getEffectiveId(), table.concat(targets, "+"))
+			end
+		end
+	else
+		return "."
+	end
+	return "."
+end
+
+local aoyi_skill = {}
+aoyi_skill.name = "aoyi"
+table.insert(sgs.ai_skills, aoyi_skill)
+aoyi_skill.getTurnUseCard = function(self, inclusive)
+	if (not self.player:hasUsed("#aoyi")) then
+		if self.player:getMark("@aoyi") == 2 then
+			for _, enemy in ipairs(self.enemies) do
+				if not enemy:getEquips():isEmpty() then
+					return sgs.Card_Parse("#aoyi:.:")
+				end
+			end
+		elseif self.player:getMark("@aoyi") == 3 then
+			if self.player:getHandcardNum() >= 2 then
+				return sgs.Card_Parse("#aoyi:.:")
+			end
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#aoyi"] = function(card, use, self)
+	if self.player:getMark("@aoyi") == 2 then
+		self:sort(self.enemies, "hp")
+		local max, target = 0, nil
+		for _, enemy in ipairs(self.enemies) do
+			local n = enemy:getEquips():length()
+			if n > max then
+				max = n
+				target = enemy
+			end
+		end
+		if target ~= nil then
+			use.card = sgs.Card_Parse("#aoyi:.:")
+			if use.to then use.to:append(target) end
+		end
+	elseif self.player:getMark("@aoyi") == 3 then
+		local cards = self.player:getCards("h")
+		cards = sgs.QList2Table(cards)
+		self:sortByKeepValue(cards)
+		self:sort(self.enemies, "hp")
+		use.card = sgs.Card_Parse("#aoyi:"..cards[1]:getId().."+"..cards[2]:getId()..":")
+		if use.to then use.to:append(self.enemies[1]) end
+	end
+end
+
+sgs.ai_use_value["aoyi"] = sgs.ai_use_value.Slash + 1.1
+sgs.ai_use_priority["aoyi"] = sgs.ai_use_priority.Slash + 1.1
+
+sgs.shenzhang_suit_value = {
+	heart = 3.9
+}
+
+function sgs.ai_cardneed.shenzhang(to, card)
+	return card:getSuit() == sgs.Card_Heart
+end
+
 --飞翼零式
 local wzpoint_skill = {}
 wzpoint_skill.name = "wzpoint"
