@@ -22,25 +22,58 @@ function file_exists(name)
 	if f ~= nil then io.close(f) return true else return false end
 end
 
-gdata = "g.lua" --胜率
-g2data = "g2.lua" --金币、皮肤、支援机
-g3data = "g3.lua" --每日奖励
+gdata = "g.json" --存档
+gbackup = "gbackup.json" --存档备份（每日签到时备份）
+--gdata = "g.lua" --胜率
+--g2data = "g2.lua" --金币、皮肤、支援机
+--g3data = "g3.lua" --每日奖励
+
+--开放使用的支援机
+zb_list = {"ZAKU", "GM", "JEGAN", "BUCUE", "M1_ASTRAY", "FLAG", "TIEREN", "GENOACE", "GAFRAN"}
+
+--开放使用的皮肤列表
+g_skin_cp = {
+	{"GUNDAM", "GUNDAM_skin1"},
+	{"CHAR_ZAKU", "CHAR_ZAKU_skin1", "CHAR_ZAKU_skin2"},
+	{"F91", "F91_skin1", "F91_skin2"},
+	{"SINANJU", "SINANJU_skin1", "SINANJU_skin2"},
+	{"FA_UNICORN", "FA_UNICORN_skin1"},
+	{"GOD", "GOD_skin1", "GOD_skin2"},
+	{"FREEDOM", "FREEDOM_skin1", "FREEDOM_skin2"},
+	{"JUSTICE", "JUSTICE_skin1", "JUSTICE_skin2"},
+	{"PROVIDENCE", "PROVIDENCE_skin1", "PROVIDENCE_skin2"},
+	{"SAVIOUR", "SAVIOUR_skin1"},
+	{"SF", "SF_skin1", "SF_skin2"},
+	{"ASTRAY_RED", "ASTRAY_RED_skin1"},
+	{"ASTRAY_BLUE", "ASTRAY_BLUE_skin1"},
+	{"EXIA_R", "EXIA_R_skin1"},
+	{"BUILD_BURNING", "BUILD_BURNING_skin1"},
+	{"TRY_BURNING", "TRY_BURNING_skin1"},
+	{"G_SELF_PP", "G_SELF_PP_skin1"},
+	{"BARBATOS", "BARBATOS_skin1"},
+	{"LUPUS", "LUPUS_skin1"},
+	{"REX", "REX_skin1"}
+}
+
+--扭蛋解禁机体
+unlock_list = {"TRY_BURNING", "G_SELF_PP", "GOD"}
 
 do
-    require  "lua.config"
+	require  "lua.config"
 	local config = config
 	local kingdoms = config.kingdoms
-	config.kingdoms = { "EFSF", "ZEON", "SLEEVE", "OMNI", "ZAFT", "ORB", "CB", "TEKKADAN", "OTHERS"--[[, "wei", "shu", "wu", "qun", "god"]] }
+	config.kingdoms = { "EFSF", "ZEON", "SLEEVE", "OMNI", "ZAFT", "ORB", "CB", "TEKKADAN", "OTHERS", "BREAK"--[[, "wei", "shu", "wu", "qun", "god"]] }
 	config.kingdom_colors = {
 		EFSF = "#547998",
 		ZEON = "#a52442",
-        SLEEVE = "#96943D",
+		SLEEVE = "#96943D",
 		OMNI = "#3cc451",
 		ZAFT = "#FF0000",
 		ORB = "#feea00",
 		CB = "#7097df",
 		TEKKADAN = "#d80000",
-        OTHERS = "#8A807A",
+		OTHERS = "#8A807A",
+		BREAK = "#ffee00",
 		wei = "#547998",
 		shu = "#D0796C",
 		wu = "#4DB873",
@@ -513,6 +546,7 @@ generalName2BGM = function(name)
 		{"BGM"..math.random(33, 34), "ASTRAY_BLUE"},
 		{"BGM35", "F91"},
 		{"BGM36", "GOD"},
+		{"BGM37", "VVVI"},
 		
 		{"BGM"..math.random(98, 99), "itemshow"}
 	}
@@ -639,6 +673,7 @@ if opening then
 end
 
 --【武将解锁系统】
+--[[
 if dlc then
 	--file = assert(io.open(gdata, "r"), "在根目录创建一个空的g.lua档案即可解决问题poi")
 	local file = io.open(gdata, "r")
@@ -648,7 +683,9 @@ if dlc then
 		file:close()
 	end
 end--BUG:t may not exist when online
+]]
 
+--[[
 saveRecord = function(player, record_table, record_type) --record_type: 0. +1 gameplay , 1. +1 win , 2. +1 win & +1 gameplay
 	assert(record_type >= 0 and record_type <= 2, "record_type should be 0, 1 or 2")
 	local tt = record_table
@@ -720,6 +757,101 @@ saveRecord = function(player, record_table, record_type) --record_type: 0. +1 ga
 	end
 	record2:close()
 end
+]]
+
+readData = function(section)
+	local json = require "json"
+	local record = io.open(gdata, "r")
+	local t = {[section] = {}}
+	if record ~= nil then
+		local content = record:read("*all")
+		t = json.decode(content) or t
+		if t[section] == nil and section ~= "*" then
+			t[section] = {}
+		end
+		record:close()
+	end
+	return t
+end
+
+writeData = function(t)
+	local record = assert(io.open(gdata, "w"))
+	local order = {"Record", "Item", "Zabing", "Skin", "Unlock", "Daily", "GameTimes"}
+	setmetatable(order, { __index = table})
+	order:insertTable(zb_list)
+	for _,cp in ipairs(g_skin_cp) do
+		for i,name in ipairs(cp) do
+			if i > 1 then
+				table.insert(order, name)
+			end
+		end
+	end
+	order:insertTable(unlock_list)
+	local content = json.encode(t, {indent = true, level = 1, keyorder = order})
+	record:write(content)
+	record:close()
+end
+
+saveRecord = function(player, record_type) --record_type: 0. +1 gameplay , 1. +1 win , 2. +1 win & +1 gameplay
+	assert(record_type >= 0 and record_type <= 2, "record_type should be 0, 1 or 2")
+	
+	local t = readData("Record")
+
+	if t["Record"]["GameTimes"] == nil then
+		t["Record"]["GameTimes"] = {0, 0}
+	end
+	
+	local all = sgs.Sanguosha:getLimitedGeneralNames()
+	for _,name in pairs(all) do
+		if sgs.Sanguosha:getGeneral(name):getPackage() == "gaoda" and t["Record"][name] == nil then
+			t["Record"][name] = {0, 0}
+		end
+	end
+	
+	local name = player:getGeneralName()
+	local skin_id = string.find(name, "_skin") --皮肤武将使用原名记录胜率(g_skin)
+	if skin_id then
+		name = string.sub(name, 1, skin_id - 1)
+	end
+	
+	local name2 = ""
+	if player:getGeneral2() then
+		name2 = player:getGeneral2Name()
+		local skin_id2 =  string.find(name2, "_skin")
+		if skin_id2 then
+			name2 = string.sub(name2, 1, skin_id2 - 1)
+		end
+	end
+	
+	--变形武将
+	if name == "ZETA_WR" then name = "ZETA" end
+	if name2 == "ZETA_WR" then name2 = "ZETA" end
+	if name == "BLITZ_Y" then name = "BLITZ" end
+	if name2 == "BLITZ_Y" then name2 = "BLITZ" end
+	if name == "REBORNS_GUNDAM" then name = "REBORNS_CANNON" end
+	if name2 == "REBORNS_GUNDAM" then name2 = "REBORNS_CANNON" end
+	
+	if record_type ~= 0 then -- record_type 1 or 2
+		t["Record"]["GameTimes"][1] = t["Record"]["GameTimes"][1] + 1
+		if t["Record"][name] then
+			t["Record"][name][1] = t["Record"][name][1] + 1
+		end
+		if name2 ~= "" and name ~= name2 and t["Record"][name2] then
+			t["Record"][name2][1] = t["Record"][name2][1] + 1
+		end
+	end
+	if record_type ~= 1 then -- record_type 0 or 2
+		t["Record"]["GameTimes"][2] = t["Record"]["GameTimes"][2] + 1
+		if t["Record"][name] then
+			t["Record"][name][2] = t["Record"][name][2] + 1
+		end
+		if name2 ~= "" and name ~= name2 and t["Record"][name2] then
+			t["Record"][name2][2] = t["Record"][name2][2] + 1
+		end
+	end
+	
+	writeData(t)
+end
 
 gdsrecordcard = sgs.CreateSkillCard{
 	name = "gdsrecord",
@@ -736,13 +868,15 @@ gdsrecordvs = sgs.CreateZeroCardViewAsSkill{
 	view_as = function(self)
 		if not sgs.Self:hasFlag("gdata_saved") then
 			sgs.Self:setFlags("gdata_saved")
+			--[[
 			local file = io.open(gdata, "r")
 			local tt = {}
 			if file ~= nil then
 				tt = file:read("*all"):split("\n")
 				file:close()
 			end
-			saveRecord(sgs.Self, tt, sgs.Self:getMark("record_type"))
+			]]
+			saveRecord(sgs.Self, --[[tt,]] sgs.Self:getMark("record_type"))
 		end
 		return gdsrecordcard:clone()
 	end
@@ -776,7 +910,7 @@ gdsrecord = sgs.CreateTriggerSkill{
 			if player:objectName() == room:getOwner():objectName() then
 				local ip = room:getOwner():getIp()
 				if ip ~= "" and string.find(ip, "127.0.0.1") then
-					saveRecord(room:getOwner(), t, 0)
+					saveRecord(room:getOwner(), --[[t,]] 0)
 				end
 			end
 		else
@@ -797,7 +931,7 @@ gdsrecord = sgs.CreateTriggerSkill{
 				local ip = room:getOwner():getIp()
 				if ip ~= "" and string.find(ip, "127.0.0.1") then
 					if string.find(winner, room:getOwner():getRole()) or string.find(winner, room:getOwner():objectName()) then
-						saveRecord(room:getOwner(), t, 1)
+						saveRecord(room:getOwner(), --[[t,]] 1)
 					end
 				else
 					for _,p in sgs.qlist(room:getAllPlayers(true)) do
@@ -1224,30 +1358,6 @@ if show_winrate then
 end
 
 --【皮肤系统】（续页底）
-if g_skin then --KrAu!
-	g_skin_cp = {
-		{"GUNDAM", "GUNDAM_skin1"},
-		{"CHAR_ZAKU", "CHAR_ZAKU_skin1", "CHAR_ZAKU_skin2"},
-		{"F91", "F91_skin1", "F91_skin2"},
-		{"SINANJU", "SINANJU_skin1", "SINANJU_skin2"},
-		{"FA_UNICORN", "FA_UNICORN_skin1"},
-		{"GOD", "GOD_skin1", "GOD_skin2"},
-		{"FREEDOM", "FREEDOM_skin1", "FREEDOM_skin2"},
-		{"JUSTICE", "JUSTICE_skin1", "JUSTICE_skin2"},
-		{"PROVIDENCE", "PROVIDENCE_skin1", "PROVIDENCE_skin2"},
-		{"SAVIOUR", "SAVIOUR_skin1"},
-		{"SF", "SF_skin1", "SF_skin2"},
-		{"ASTRAY_RED", "ASTRAY_RED_skin1"},
-		{"ASTRAY_BLUE", "ASTRAY_BLUE_skin1"},
-		{"EXIA_R", "EXIA_R_skin1"},
-		{"BUILD_BURNING", "BUILD_BURNING_skin1"},
-		{"TRY_BURNING", "TRY_BURNING_skin1"},
-		{"G_SELF_PP", "G_SELF_PP_skin1"},
-		{"BARBATOS", "BARBATOS_skin1"},
-		{"LUPUS", "LUPUS_skin1"},
-		{"REX", "REX_skin1"}
-	}
-end
 	
 skincard = sgs.CreateSkillCard{
 	name = "skin",
@@ -1301,18 +1411,23 @@ skin = sgs.CreateZeroCardViewAsSkill{
 	view_as = function(self)
 		local acard = skincard:clone()
 		
+		--[[
 		local file = io.open(g2data, "r")
 		local tt = {}
 		if file ~= nil then
 			tt = file:read("*all"):split("\n")
 			file:close()
 		end
+		]]
+		
+		local t = readData("Skin")
 		
 		local sk = {}
-		for _,item in pairs(tt) do
-			local s = item:split("=")
-			if string.find(s[1], "_skin") and tonumber(s[2]) > 0 then
-				table.insert(sk, s[1])
+		for _,cp in ipairs(g_skin_cp) do
+			for i,name in ipairs(cp) do
+				if i > 1 and t["Skin"][name] > 0 then
+					table.insert(sk, name)
+				end
 			end
 		end
 		
@@ -1320,16 +1435,19 @@ skin = sgs.CreateZeroCardViewAsSkill{
 		return acard
     end,
 	enabled_at_play = function(self, player)
+		--[[
 		local file = io.open(g2data, "r")
 		local tt = {}
 		if file ~= nil then
 			tt = file:read("*all"):split("\n")
 			file:close()
 		end
+		]]
 		
-		for _,item in pairs(tt) do
-			local s = item:split("=")
-			if string.find(s[1], "_skin") and tonumber(s[2]) > 0 then
+		local t = readData("Skin")
+		
+		for k, v in pairs(t["Skin"]) do
+			if v > 0 then
 				local name = player:getGeneralName()
 				local skin_id =  string.find(name, "_skin")
 				if skin_id then
@@ -1345,7 +1463,7 @@ skin = sgs.CreateZeroCardViewAsSkill{
 					end
 				end
 				
-				if string.find(s[1], name) or (name2 ~= "" and string.find(s[1], name2)) then
+				if string.find(k, name) or (name2 ~= "" and string.find(k, name2)) then
 					return true
 				end
 			end
@@ -1393,7 +1511,6 @@ skinrecord = sgs.CreateTriggerSkill{
 }
 
 --【扭蛋、彩蛋模式】（续页底）
-unlock_list = {"TRY_BURNING", "G_SELF_PP", "GOD"} --扭蛋解禁机体
 
 if lucky_card then
 	itemshow = sgs.General(extension, "itemshow", "", 0, true, true, false)
@@ -1410,7 +1527,7 @@ if lucky_card then
 				local ran = math.random(1, 100)
 			
 				room:removePlayerMark(use.from, "@coin")
-				saveItem("Coin", -1)
+				saveItem("Item", "Coin", -1)
 				if x == 1 or i == 1 or ran <= 25 or ran > 85 or i == 10 then --十连加速，跳过杂兵动画
 					room:setEmotion(use.from, "capsule")
 					room:broadcastSkillInvoke("gdsbgm", 7)
@@ -1447,7 +1564,7 @@ if lucky_card then
 					log.arg = item
 					log.arg2 = string.rep("I", n)
 					room:sendLog(log)
-					local repeated = saveItem(item, 1)
+					local repeated = saveItem("Skin", item, 1)
 					if repeated then
 						room:setEmotion(use.from, "yomeng")
 						room:broadcastSkillInvoke("gdsbgm", 7)
@@ -1456,7 +1573,7 @@ if lucky_card then
 						log.arg = 1
 						room:sendLog(log)
 						room:addPlayerMark(use.from, "@coin", 1)
-						saveItem("Coin", 1)
+						saveItem("Item", "Coin", 1)
 					end
 				elseif ran <= 85 then
 					local zb = zb_list
@@ -1479,11 +1596,11 @@ if lucky_card then
 					log.arg = item
 					log.arg2 = n
 					room:sendLog(log)
-					saveItem(item, n)
+					saveItem("Zabing", item, n)
 				else
 					local new_ms = {}
 					for _,un in pairs(unlock_list) do
-						local repeated = saveItem(un, 0)
+						local repeated = saveItem("Unlock", un, 0)
 						if not repeated then
 							table.insert(new_ms, un)
 						end
@@ -1498,7 +1615,7 @@ if lucky_card then
 						log.arg = 2
 						room:sendLog(log)
 						room:addPlayerMark(use.from, "@coin", 2)
-						saveItem("Coin", 2)
+						saveItem("Item", "Coin", 2)
 					else
 						local item = new_ms[math.random(#new_ms)]
 					
@@ -1512,7 +1629,7 @@ if lucky_card then
 						log.type = "#capsule_un"
 						log.arg = item
 						room:sendLog(log)
-						saveItem(item, 1)
+						saveItem("Unlock", item, 1)
 					end
 				end
 				lucky_translate() --动态描述
@@ -1549,16 +1666,17 @@ if lucky_card then
 			if event == sgs.GameStart then
 				local ip = room:getOwner():getIp()
 				if ip ~= "" and string.find(ip, "127.0.0.1") and player:objectName() == room:getOwner():objectName()
-					and file_exists(g2data) and player:getGameMode() == "_mini_1" then
+					--[[and file_exists(g2data)]] and player:getGameMode() == "_mini_1" then
 					--[[changeBGM("BGM99")
 					local log = sgs.LogMessage()
 					log.type = "#BGM"
 					log.arg = "BGM99"
 					room:sendLog(log)]]
-					require "g2"
-					if Coin ~= nil and Coin > 0 then
-						room:setPlayerMark(player, "@coin", Coin)
-					end
+					--require "g2"
+					local t = readData("Item")
+					--if Coin ~= nil and Coin > 0 then
+						room:setPlayerMark(player, "@coin", t["Item"]["Coin"])
+					--end
 				end
 			elseif event == sgs.DrawNCards then
 				if player:getGameMode() == "_mini_1" and player:getGeneralName() == "itemshow" then
@@ -1599,6 +1717,7 @@ if lucky_card then
 	sgs.Sanguosha:addSkills(skills)
 end
 
+--[[
 saveItem = function(item_type, add_num)
 	local file = io.open(g2data, "r")
 	local tt = {}
@@ -1630,6 +1749,23 @@ saveItem = function(item_type, add_num)
     record:close()
 	return repeated
 end
+]]
+
+saveItem = function(item_type, item_name, add_num)
+	local t = readData(item_type)
+	local repeated = false
+
+	if t[item_type][item_name] then
+		if t[item_type][item_name] > 0 then repeated = true end
+		t[item_type][item_name] = t[item_type][item_name] + add_num
+	else
+		t[item_type][item_name] = add_num
+	end
+	
+	writeData(t)
+	
+	return repeated
+end
 
 luckyrecordcard = sgs.CreateSkillCard{
 	name = "luckyrecord",
@@ -1647,7 +1783,7 @@ luckyrecordvs = sgs.CreateZeroCardViewAsSkill{
 		if not sgs.Self:hasFlag("g2data_saved") then
 			sgs.Self:setFlags("g2data_saved")
 			local n = math.max(sgs.Self:getMark("add_coin"), 1)
-			saveItem("Coin", n)
+			saveItem("Item", "Coin", n)
 		end
 		return luckyrecordcard:clone()
 	end
@@ -1706,7 +1842,7 @@ luckyrecord = sgs.CreateTriggerSkill{
 					
 					local ip = room:getOwner():getIp()
 					if ip ~= "" and string.find(ip, "127.0.0.1") and player:objectName() == room:getOwner():objectName() then
-						saveItem("Coin", 1)
+						saveItem("Item", "Coin", 1)
 					else
 						if player:getState() == "online" then
 							room:askForUseCard(player, "@@luckyrecord!", "@luckyrecord")
@@ -1725,34 +1861,58 @@ if lucky_card then
 	local DailyCoin = function()
 		math.random()
 		if math.random(1, 100) <= 60 then
-			saveItem("Coin", 1)
+			saveItem("Item", "Coin", 1)
 			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n恭喜你获得 1 枚G币！")
 		else
-			saveItem("Coin", 5)
+			saveItem("Item", "Coin", 5)
 			sgs.Alert("【每日奖励】\n欢迎进入高达杀的世界\n你今天的运气真好！\n恭喜你获得 5 枚G币！")
 		end
 	end
 	
-	local today =  os.date("%y")..os.date("%m")..os.date("%d")
-	local file = io.open(g3data, "r")
-	if file == nil then
-		local file2 = io.open(g3data, "w")
-		file2:write(math.pow(tonumber(today), 2))
-		file2:close()
+	local today =  tonumber(os.date("%y")..os.date("%m")..os.date("%d"))
+	--local file = io.open(g3data, "r")
+	local t = readData("Daily")
+	--if file == nil then
+	if next(t["Daily"]) == nil then
+		--local file2 = io.open(g3data, "w")
+		--file2:write(math.pow(tonumber(today), 2))
+		--file2:close()
+		t["Daily"][1] = math.pow(today, 2)
+		writeData(t)
 		DailyCoin()
 	else
-		local _date = file:read()
-		file:close()
-		if _date == "" or tonumber(_date) == nil or tonumber(_date) < 0 or math.pow(tonumber(_date), 0.5) ~= math.floor(math.pow(tonumber(_date), 0.5)) then
-			local file2 = io.open(g3data, "w")
-			file2:write(math.pow(tonumber(today), 2))
-			file2:close()
+		--local _date = file:read()
+		--file:close()
+		local _date = t["Daily"][1]
+		if _date < 0 or math.pow(_date, 0.5) ~= math.floor(math.pow(_date, 0.5)) then
+			--local file2 = io.open(g3data, "w")
+			--file2:write(math.pow(tonumber(today), 2))
+			--file2:close()
+			t["Daily"][1] = math.pow(today, 2)
+			writeData(t)
 			sgs.Alert("温馨提示：\n文明游戏，别改存档哦～")
-		elseif tonumber(_date) ~= math.pow(tonumber(today), 2) then
-			local file2 = io.open(g3data, "w")
-			file2:write(math.pow(tonumber(today), 2))
-			file2:close()
+		elseif _date ~= math.pow(today, 2) then
+			--local file2 = io.open(g3data, "w")
+			--file2:write(math.pow(tonumber(today), 2))
+			--file2:close()
+			t["Daily"][1] = math.pow(tonumber(today), 2)
+			writeData(t)
 			DailyCoin()
+			
+			--Daily Backup
+			local file = io.open(gdata, "r")
+			local line = ""
+			if file ~= nil then
+				line = file:read("*all")
+				file:close()
+			end
+			
+			if line ~= "" then
+				local file2 = io.open(gbackup, "w")
+				file2:write(line)
+				file2:close()
+			end
+			
 		end
 	end
 end
@@ -1827,7 +1987,6 @@ zyrecord = sgs.CreateTriggerSkill{
 }
 
 --【支援机系统】
-zb_list = {"ZAKU", "GM", "JEGAN", "BUCUE", "M1_ASTRAY", "FLAG", "TIEREN", "GENOACE", "GAFRAN"} --开放使用的支援机
 
 zabingcard = sgs.CreateSkillCard{
 	name = "zabing",
@@ -1869,18 +2028,21 @@ zabing = sgs.CreateZeroCardViewAsSkill{
 		local zbs = sgs.Self:property("zabing"):toString()
 		
 		if zbs == "" then
+			--[[
 			local file = io.open(g2data, "r")
 			local tt = {}
 			if file ~= nil then
 				tt = file:read("*all"):split("\n")
 				file:close()
 			end
+			]]
+			
+			local t = readData("Zabing")
 			
 			local zb = {}
-			for _,item in pairs(tt) do
-				local s = item:split("=")
-				if table.contains(zb_list, s[1]) and tonumber(s[2]) > 0 then
-					table.insert(zb, s[1])
+			for _,v in pairs(zb_list) do
+				if t["Zabing"][v] > 0 then
+					table.insert(zb, v)
 				end
 			end
 			
@@ -1895,7 +2057,7 @@ zabing = sgs.CreateZeroCardViewAsSkill{
 		
 		if zb ~= "" and player:getMark("zabing_record") == 0 then
 			player:setMark("zabing_record", 1)
-			saveItem(zb, -1)
+			saveItem("Zabing", zb, -1)
 		end
 		
 		local can_invoke = (zb ~= "")
@@ -1904,16 +2066,19 @@ zabing = sgs.CreateZeroCardViewAsSkill{
 			local hp = sgs.Sanguosha:getGeneral(zb):getMaxHp()
 			can_invoke = (player:getMark("@zb_full" .. hp .. "_use" .. hp) == 1 and not player:hasFlag("zabing_used"))
 		else
+			--[[
 			local file = io.open(g2data, "r")
 			local tt = {}
 			if file ~= nil then
 				tt = file:read("*all"):split("\n")
 				file:close()
 			end
+			]]
 			
-			for _,item in pairs(tt) do
-				local s = item:split("=")
-				if table.contains(zb_list, s[1]) and tonumber(s[2]) > 0 then
+			local t = readData("Zabing")
+			
+			for k, v in pairs(t["Zabing"]) do
+				if v > 0 then
 					can_invoke = true
 					break
 				end
@@ -3798,13 +3963,14 @@ duilie = sgs.CreateTriggerSkill{
 				room:setPlayerMark(q,"@duilieD",0)
 		    end
 			if room:askForSkillInvoke(player,self:objectName(),data) then
+				room:broadcastSkillInvoke(self:objectName())
 				local judge = sgs.JudgeStruct()
 				judge.pattern = ".|black"
 				judge.good = true
 				judge.play_animation = false
 				judge.reason = self:objectName()
 				judge.who = player
-				room:judge(judge)
+				room:judge(judge)				
 				if math.mod(judge.card:getNumber(),2) == 1 then
 					room:setPlayerMark(player,"@duilieA",1)
 					local log = sgs.LogMessage()
@@ -3934,6 +4100,7 @@ zhihui = sgs.CreateTriggerSkill{
 	    if player:getPhase() == sgs.Player_Start and (player:getMark("@duilieA") > 0 or player:getMark("@duilieB") > 0 or player:getMark("@duilieC") > 0 or player:getMark("@duilieD") > 0) and room:askForSkillInvoke(player,self:objectName(),data) then
 			local target = room:askForPlayerChosen(player, tos, self:objectName(), "@@zhihui", true, true)
 			if target then
+				room:broadcastSkillInvoke(self:objectName())
 			    room:acquireSkill(target, "#duiliee")
 				if player:getMark("@duilieA") > 0 then
 				    room:setPlayerMark(target,"@duilieA",1)
@@ -4765,7 +4932,9 @@ shenniaocard = sgs.CreateSkillCard{
 		end
 		--[[room:setPlayerProperty(effect.to, "alive", sgs.QVariant(false))
 		room:setPlayerProperty(effect.to, "role", sgs.QVariant("unknown"))--set original role before revive
-		room:doBroadcastNotify(sgs.CommandType.S_COMMAND_KILL_PLAYER, sgs.QVariant(effect.to:objectName()))]]--BUG:neo zeong test
+		room:doBroadcastNotify(sgs.CommandType.S_COMMAND_KILL_PLAYER, sgs.QVariant(effect.to:objectName()))
+		room:broadcastProperty(effect.to, "role")
+		room:resetAI(effect.to)]]--BUG:neo zeong test
 	end,
 }
 
@@ -5331,18 +5500,8 @@ SHINING_S = sgs.General(extension, "SHINING_S", "OTHERS", 4, true, true, true)
 
 GOD = sgs.General(extension, "GOD", "OTHERS", 4, true, lucky_card, lucky_card)
 if lucky_card then
-	local file = io.open(g2data, "r")
-	local tt = {}
-	if file ~= nil then
-		tt = file:read("*all"):split("\n")
-		file:close()
-	end
-	for _,a in pairs(tt) do
-		local s = a:split("=")
-		if s[1] == "GOD" and tonumber(s[2]) > 0 then
-			GOD = sgs.General(extension, "GOD", "OTHERS", 4, true, false)
-			break
-		end
+	if saveItem("Unlock", "GOD", 0) then
+		GOD = sgs.General(extension, "GOD", "OTHERS", 4, true, false)
 	end
 end
 
@@ -10238,6 +10397,145 @@ STRIKE_NOIR:addSkill(huantong)
 STRIKE_NOIR:addSkill(huantongc)
 STRIKE_NOIR:addSkill(jianmie)
 
+EXIA = sgs.General(extension, "EXIA", "CB", 4, true, true)
+
+yuanjian = sgs.CreateTriggerSkill{
+	name = "yuanjian",
+	events = {sgs.TargetSpecified},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card and use.card:isKindOf("Slash") then
+		
+			if use.card:getSuit() == sgs.Card_Spade or (player:getMark("exia_transammark") > 0 and use.card:isBlack()) then
+				local log = sgs.LogMessage()
+				log.type = "#IgnoreArmor"
+				log.from = player
+				log.card_str = use.card:toString()
+				room:sendLog(log)
+				for _,p in sgs.qlist(use.to) do
+					if p:getMark("Equips_of_Others_Nullified_to_You") == 0 then
+						p:addQinggangTag(use.card)
+					end
+				end
+			end
+			
+			if use.card:getSuit() == sgs.Card_Club or (player:getMark("exia_transammark") > 0 and use.card:isBlack()) then
+				local invoked = false
+				for _,p in sgs.qlist(use.to) do
+					if not p:isKongcheng() then
+						if not invoked then
+							invoked = true
+							--room:broadcastSkillInvoke(self:objectName())
+						end
+						if not room:askForSkillInvoke(player, self:objectName(), data) then continue end
+						local id = room:askForCardChosen(player, p, "h", self:objectName())
+						room:throwCard(id, p, player)
+					end
+				end
+			end
+			
+			if use.card:getSuit() == sgs.Card_Diamond or (player:getMark("exia_transammark") > 0 and use.card:isRed()) then
+				--room:broadcastSkillInvoke(self:objectName())
+				local jink_list = sgs.QList2Table(player:getTag("Jink_" .. use.card:toString()):toIntList())
+				for i, p in sgs.qlist(use.to) do
+					if jink_list[i + 1] == 1 then
+						if not room:askForSkillInvoke(player, self:objectName(), data) then continue end
+						jink_list[i + 1] = 2
+					end
+				end
+				local jink_data = sgs.QVariant()
+				jink_data:setValue(Table2IntList(jink_list))
+				player:setTag("Jink_" .. use.card:toString(), jink_data)
+			end
+		end
+	end
+}
+
+yuanjian_range = sgs.CreateTargetModSkill{
+	name = "#yuanjian_range",
+	pattern = "Slash|red",
+	distance_limit_func = function(self, player, card)
+		if card:getSuit() == sgs.Card_Heart or player:getMark("exia_transammark") > 0 then
+			return 1
+		end
+	end
+}
+
+EXIA_TRANSAMcard = sgs.CreateSkillCard{
+	name = "exia_transam",
+	target_fixed = true,
+	will_throw = false,
+	on_use = function(self, room, source, targets)
+		source:loseMark("@exia_transam")
+		room:setPlayerMark(source, "exia_transammark", 1)
+		room:broadcastSkillInvoke("gdsbgm", 3)
+		room:doLightbox("image=image/animate/TRANS-AM.png", 1500)
+		
+		if source:getMark("drank") == 0 then --Mask
+			room:addPlayerMark(source, "drank")
+			source:setMark("drank", 0)
+		end
+		
+		room:drawCards(source, 3)
+	end
+}
+
+EXIA_TRANSAMvs = sgs.CreateZeroCardViewAsSkill{
+	name = "exia_transam",
+	view_as = function(self, cards)
+		local acard = EXIA_TRANSAMcard:clone()
+		return acard
+	end,
+	enabled_at_play = function(self, player)
+		return player:getMark("@exia_transam") > 0
+	end
+}
+
+EXIA_TRANSAM = sgs.CreateGameStartSkill{
+	name = "exia_transam",
+	frequency = sgs.Skill_Limited,
+	limit_mark = "@exia_transam",
+	view_as_skill = EXIA_TRANSAMvs,
+	on_gamestart = function(self, player)
+	end
+}
+
+EXIA_TRANSAMslash = sgs.CreateTargetModSkill{
+	name = "#exia_transamslash",
+	pattern = "Slash",
+	residue_func = function(self, player)
+		if player and player:hasUsed("#exia_transam") and player:getMark("exia_transammark") > 0 then
+			return 2
+		else
+			return 0
+		end
+	end
+}
+
+EXIA_TRANSAMmark = sgs.CreateTriggerSkill{
+	name = "#exia_transammark",
+	events = {sgs.EventPhaseChanging},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getMark("exia_transammark") > 0 then
+			if data:toPhaseChange().to == sgs.Player_NotActive then --Clear mask
+				room:setPlayerMark(player, "drank", 0)
+			elseif data:toPhaseChange().to == sgs.Player_Start then --Limit slash
+				room:setPlayerMark(player, "exia_transammark", 0)
+				room:setPlayerCardLimitation(player, "use", "Slash", true)
+			end
+		end
+	end
+}
+
+EXIA:addSkill(yuanjian)
+EXIA:addSkill(yuanjian_range)
+extension:insertRelatedSkills("yuanjian", "#yuanjian_range")
+EXIA:addSkill(EXIA_TRANSAM)
+EXIA:addSkill(EXIA_TRANSAMslash)
+EXIA:addSkill(EXIA_TRANSAMmark)
+
 EXIA_R = sgs.General(extension, "EXIA_R", "CB", 4, true, false)
 
 liejian = sgs.CreateTriggerSkill{
@@ -11755,18 +12053,8 @@ BUILD_BURNING:addSkill(tonghua)
 
 TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, lucky_card, lucky_card)
 if lucky_card then
-	local file = io.open(g2data, "r")
-	local tt = {}
-	if file ~= nil then
-		tt = file:read("*all"):split("\n")
-		file:close()
-	end
-	for _,a in pairs(tt) do
-		local s = a:split("=")
-		if s[1] == "TRY_BURNING" and tonumber(s[2]) > 0 then
-			TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
-			break
-		end
+	if saveItem("Unlock", "TRY_BURNING", 0) then
+		TRY_BURNING = sgs.General(extension, "TRY_BURNING", "OTHERS", 4, true, false)
 	end
 end
 
@@ -12156,22 +12444,12 @@ extension:insertRelatedSkills("huanse", "#G_SELF_ASS_skill2")
 extension:insertRelatedSkills("huanse", "#G_SELF_REF_skill")
 extension:insertRelatedSkills("huanse", "#G_SELF_HT_skill")
 
---G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
+G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
 
 G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, lucky_card, lucky_card)
 if lucky_card then
-	local file = io.open(g2data, "r")
-	local tt = {}
-	if file ~= nil then
-		tt = file:read("*all"):split("\n")
-		file:close()
-	end
-	for _,a in pairs(tt) do
-		local s = a:split("=")
-		if s[1] == "G_SELF_PP" and tonumber(s[2]) > 0 then
-			G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
-			break
-		end
+	if saveItem("Unlock", "G_SELF_PP", 0) then
+		G_SELF_PP = sgs.General(extension, "G_SELF_PP", "OTHERS", 4, true, false)
 	end
 end
 
@@ -12578,6 +12856,234 @@ local skills = sgs.SkillList()
 if not sgs.Sanguosha:getSkill("REX_buff") then skills:append(REX_buff) end
 sgs.Sanguosha:addSkills(skills)
 
+VVVI = sgs.General(extension, "VVVI", "BREAK", 5, true, true)
+
+VVV = sgs.CreateTriggerSkill{
+	name = "#VVV",
+	events = {sgs.DrawInitialCards},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		room:askForSkillInvoke(player, self:objectName(), sgs.QVariant("MSG"))
+	end
+}
+
+fuwen = sgs.CreateTriggerSkill{
+	name = "fuwen",
+	events = {sgs.CardFinished, sgs.CardResponded, sgs.EventPhaseChanging, sgs.CardsMoveOneTime, sgs.EventPhaseEnd},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if player:getMark("@HITO") < 100 then
+			if (event == sgs.CardFinished or event == sgs.CardResponded) then
+				local card = nil
+				if event == sgs.CardFinished then
+					card = data:toCardUse().card
+				else
+					local response = data:toCardResponse()
+					if response.m_isUse then
+						card = response.m_card
+					end
+				end
+				if card and (card:getHandlingMethod() == sgs.Card_MethodUse) then
+					room:addPlayerMark(player, "@HITO", card:getNumber())
+					
+					if player:getMark("@HITO") >= 100 then
+						local log = sgs.LogMessage()
+						log.type = "#VVV_mode"
+						log.from = player
+						log.arg = "VVV_cool"
+						room:sendLog(log)
+					end
+				end
+			end
+		elseif player:getMark("@HITO") < 666 then
+			if event == sgs.EventPhaseChanging then
+				local change = data:toPhaseChange()
+				if change.to == sgs.Player_Play and not player:isSkipped(sgs.Player_Play) then
+					player:skip(sgs.Player_Play)
+				end
+			elseif event == sgs.CardsMoveOneTime then
+				local move = data:toMoveOneTime()
+				if move.from and move.from:objectName() == player:objectName() and move.from_places:contains(sgs.Player_PlaceHand) then
+					for i, id in sgs.qlist(move.card_ids) do
+						if not player:isAlive() then return false end
+						if move.from_places:at(i) == sgs.Player_PlaceHand then
+							local card = sgs.Sanguosha:getCard(id)
+							room:addPlayerMark(player, "@HITO", math.min(card:getNumber() * 10, 666 - player:getMark("@HITO")))
+							
+							if player:getMark("@HITO") == 666 then
+								local log = sgs.LogMessage()
+								log.type = "#VVV_mode"
+								log.from = player
+								log.arg = "VVV_hito"
+								room:sendLog(log)
+								
+								room:loseMaxHp(player)
+								player:drawCards(2, self:objectName())
+								player:gainMark("@VVV_qiefu")
+								room:setPlayerMark(player, "VVV_cool", 2)
+								player:gainAnExtraTurn()
+								break
+							end
+							
+						end
+					end
+				end
+			end
+		else
+			if event == sgs.EventPhaseEnd then
+				if player:getPhase() == sgs.Player_Play then
+					room:removePlayerMark(player, "VVV_cool")
+					if player:getMark("VVV_cool") == 0 then
+						local log = sgs.LogMessage()
+						log.type = "#VVV_mode"
+						log.from = player
+						log.arg = "VVV_normal"
+						room:sendLog(log)
+						
+						room:setPlayerMark(player, "@HITO", 0)
+						room:setPlayerMark(player, "@VVV_qiefu", 0)
+					end
+				end
+			end
+		end
+	end
+}
+
+canguang = sgs.CreateOneCardViewAsSkill{
+	name = "canguang",
+	response_or_use = true,
+	view_filter = function(self, card)
+		if card:isEquipped() then return false end
+		local usereason = sgs.Sanguosha:getCurrentCardUseReason()
+		if usereason == sgs.CardUseStruct_CARD_USE_REASON_PLAY then
+			local newanal = sgs.Sanguosha:cloneCard("analeptic", sgs.Card_NoSuitRed, 0)
+			return (sgs.Slash_IsAvailable(sgs.Self) and card:isBlack()) or (sgs.Self:getMark("@HITO") == 666 and newanal:isAvailable(sgs.Self) and card:isRed())
+		elseif (usereason == sgs.CardUseStruct_CARD_USE_REASON_RESPONSE) or (usereason == sgs.CardUseStruct_CARD_USE_REASON_RESPONSE_USE) then
+			local pattern = sgs.Sanguosha:getCurrentCardUsePattern()
+			if pattern == "slash" then
+				return card:isBlack()
+			else
+				return card:isRed()
+			end
+		end
+		
+		return false
+	end,
+	view_as = function(self, card)
+		if card:isBlack() then
+			local name = "slash"
+			if sgs.Self:getMark("@HITO") == 666 then
+				name = "fire_slash"
+			end
+			local slash = sgs.Sanguosha:cloneCard(name, card:getSuit(), card:getNumber())
+			slash:addSubcard(card)
+			slash:setSkillName(self:objectName())
+			return slash
+		else
+			local name = "jink"
+			if sgs.Self:getMark("@HITO") == 666 then
+				name = "analeptic"
+			end
+			local jink = sgs.Sanguosha:cloneCard(name, card:getSuit(), card:getNumber())
+			jink:addSubcard(card)
+			jink:setSkillName(self:objectName())
+			return jink
+		end
+		return nil
+	end,
+	enabled_at_play = function(self, player)
+		if player:getMark("@HITO") >= 100 and player:getMark("@HITO") < 666 then return false end
+		local newanal = sgs.Sanguosha:cloneCard("analeptic", sgs.Card_NoSuitRed, 0)
+		return sgs.Slash_IsAvailable(player) or (player:getMark("@HITO") == 666 and newanal:isAvailable(player))
+	end,
+	enabled_at_response = function(self, player, pattern)
+		if player:getMark("@HITO") >= 100 and player:getMark("@HITO") < 666 then return false end
+		return (pattern == "slash") or (player:getMark("@HITO") < 100 and pattern == "jink") or (player:getMark("@HITO") == 666 and string.find(pattern, "analeptic"))
+	end
+}
+
+qiefucard = sgs.CreateSkillCard{
+	name = "qiefu",
+	target_fixed = false,
+	will_throw = true,
+	filter = function(self, targets, to_select, player)
+		if to_select:objectName() == player:objectName() then return false end
+		if #targets > 0 then
+			for _,t in ipairs(targets) do
+				if t:isAdjacentTo(to_select) then
+					return true
+				end
+			end
+		else
+			return true
+		end
+		return false
+	end,
+	on_use = function(self, room, source, targets)
+		source:loseMark("@VVV_qiefu")
+		
+		local victims = {}
+		for _,t in ipairs(targets) do
+			table.insert(victims, t:objectName())
+		end
+		room:setPlayerProperty(source, "VVV_qiefu", sgs.QVariant(table.concat(victims, "+")))
+		
+		local slash = sgs.Sanguosha:cloneCard("fire_slash", sgs.Card_NoSuit, 0)
+		slash:setSkillName(self:objectName())
+		room:useCard(sgs.CardUseStruct(slash, source, source))
+		
+		room:setPlayerProperty(source, "VVV_qiefu", sgs.QVariant())
+	end
+}
+
+qiefuvs = sgs.CreateViewAsSkill{
+    name = "qiefu",
+    n = 2,
+	view_filter = function(self, selected, to_select)
+		return not to_select:isEquipped()
+	end,
+    view_as = function(self, cards)
+		if #cards == 2 then
+			local acard = qiefucard:clone()
+			for _,card in pairs(cards) do
+				acard:addSubcard(card)
+			end
+			acard:setSkillName(self:objectName())
+			return acard
+		end
+    end,
+    enabled_at_play = function(self, player)
+        return player:getMark("@VVV_qiefu") > 0 and player:getMark("@HITO") == 666
+    end
+}
+
+qiefu = sgs.CreateTriggerSkill{
+	name = "qiefu",
+	events = {sgs.DamageInflicted},
+	frequency = sgs.Skill_Limited,
+	view_as_skill = qiefuvs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local damage = data:toDamage()
+		if damage.card and damage.card:getSkillName() == self:objectName() and not damage.chain and not damage.transfer then
+			local victims = player:property("VVV_qiefu"):toString():split("+")
+			for _,p in sgs.qlist(room:getOtherPlayers(player)) do
+				if table.contains(victims, p:objectName()) then
+					damage.to = p
+					damage.transfer = true
+					room:damage(damage)
+				end
+			end
+			return true
+		end
+	end
+}
+
+VVVI:addSkill(VVV)
+VVVI:addSkill(fuwen)
+VVVI:addSkill(canguang)
+VVVI:addSkill(qiefu)
+
 sgs.LoadTranslationTable{
 	["gaoda"] = "高达杀",
 	["EFSF"] = "地球联邦",
@@ -12589,6 +13095,7 @@ sgs.LoadTranslationTable{
 	["CB"] = "天人",
 	["TEKKADAN"] = "铁华团",
 	["OTHERS"] = "其他",
+	["BREAK"] = "乱入",
 	["@point"] = "点数",
 	["gdsvoice"] = "通信员",
 	["seshia"] = "塞西娅",
@@ -12672,6 +13179,7 @@ sgs.LoadTranslationTable{
 	["BGM34"] = "♪ Zips",
 	["BGM35"] = "♪ ETERNAL WIND〜ほほえみは光る風の中〜",
 	["BGM36"] = "♪ 我が心 明鏡止水～されどこの掌は烈火の如く",
+	["BGM37"] = "♪ 黒染",
 	
 	["BGM98"] = "♪ 英霊召喚",
 	["BGM99"] = "♪ いけないボーダーライン",
@@ -12900,9 +13408,11 @@ sgs.LoadTranslationTable{
 	
 	["ReZEL"] = "里歇尔",
 	["#ReZEL"] = "联邦精锐",
-	["~ReZEL"] = "",
+	["~ReZEL"] = "臆病だから生き残ったわけじゃないし、\n\z
+勇敢な奴が死んだわけでもない、\n\z
+両者を分けたのは…運だ",
 	["designer:ReZEL"] = "wch5621628 & Sankies & NOS7IM",
-	["cv:ReZEL"] = "诺姆队长",
+	["cv:ReZEL"] = "诺姆·帕西考克",
 	["illustrator:ReZEL"] = "Sankies",
 	["duilie"] = "队列",
 	[":duilie"] = "准备阶段开始时，你可以进行一次判定，根据判定牌获得相应效果，直到你的下回合开始前：\
@@ -12923,8 +13433,12 @@ sgs.LoadTranslationTable{
 <font color='yellow'>当你成为一张</font><b><font color='red'>红色</font></b><font color='yellow'>牌的目标后，你可以摸一张牌</font>",
 	["#duilieBe"] = "%from 的技能 %arg 被触发，点数为<b>双数</b>的牌对其无效",
 	["zhihui"] = "指挥",
-	[":zhihui"] = "当你发动“队列”后，你可以令你攻击范围内的一名其他角色共享你的效果。",
+	[":zhihui"] = "当你发动<b>“队列”</b>后，你可以令你攻击范围内的一名其他角色共享你的效果。",
 	["@@zhihui"] = "请选择攻击范围内的一名其他角色共享“队列”",
+	["$duilie1"] = "接近中の船，ただちに停船せよ",
+	["$duilie2"] = "貴船は，本艦の防衛線に侵入している",
+	["$zhihui1"] = "お前は運が強かったんだ",
+	["$zhihui2"] = "焦るな，リディ少尉!隊列を維持しろ!",
 	
 	["DELTA_PLUS"] = "德尔塔+",
 	["#DELTA_PLUS"] = "时代的反抗者",
@@ -13878,6 +14392,22 @@ sgs.LoadTranslationTable{
 	["$jianmie2"] = "今終わる!",
 	["$jianmie3"] = "敵対するものは死ぬ",
 	
+	["EXIA"] = "艾斯亚",
+	["#EXIA"] = "能天使",
+	["~EXIA"] = "",
+	["designer:EXIA"] = "高达杀制作组",
+	["cv:EXIA"] = "刹那·F·塞尔",
+	--["illustrator:EXIA"] = "wch5621628",
+	["yuanjian"] = "原剑",
+	[":yuanjian"] = "当你使用【杀】时，若此【杀】花色为：<br>\z
+<b>①</b>黑桃：无视防具。<br>\z
+<b>②</b>红桃：攻击范围+1。<br>\z
+<b>③</b>梅花：你可以弃置目标一张手牌。<br>\z
+<b>④</b>方块：你可以令目标使用两张【闪】抵消。",
+	["exia_transam"] = "TRANS-AM",
+	[":exia_transam"] = "<img src=\"image/mark/@exia_transam.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以摸三张牌，然后此阶段：你可以额外使用两张【杀】，<b>黑色</b>【杀】可发动<b>“原剑”①③</b>，<b><font color='red'>红色</font></b>【杀】可发动<b>“原剑”②④</b>，你于下个回合不可使用【杀】。",
+	["@exia_transam"] = "TRANS-AM",
+	
 	["EXIA_R"] = "艾斯亚R",
 	["#EXIA_R"] = "能天使",
 	["liejian"] = "裂剑",
@@ -14203,6 +14733,31 @@ sgs.LoadTranslationTable{
 	["$diwang6"] = "貫け!",
 	["$kuangxi"] = "おい、バルバトス。お前だって止まりたくないだろう！",
 	
+	----------乱入----------
+	["VVVI"] = "火人",
+	["#VVVI"] = "革命机一号",
+	["~VVVI"] = "",
+	["designer:VVVI"] = "高达杀制作组",
+	["cv:VVVI"] = "时缟·晴人",
+	--["illustrator:VVVI"] = "",
+	["#VVV"] = "舍弃人类之身",
+	["#VVV:MSG"] = "<center>是否舍弃人类之身?<br>ニンゲンヤメマスカ?<br><font color='#16b1c7'>Do you resign as a human being?</font></center>",
+	["#VVV_mode"] = "%from 进入 %arg",
+	["VVV_normal"] = "一般模式",
+	["VVV_cool"] = "闲置模式",
+	["VVV_hito"] = "火人模式",
+	["@HITO"] = "热量",
+	["@VVV_qiefu"] = "切腹大剑",
+	["fuwen"] = "符文",
+	[":fuwen"] = "<img src=\"image/mark/@HITO.png\"><b><font color='blue'>锁定技，</font></b>你根据<b>“热量”</b>指数拥有以下效果：<br>\z
+0~99：当你使用牌结算后，你积蓄等同此牌点数的<b>“热量”</b>。<font color='grey'>&lt;一般状态&gt;</font><br>\z
+100~665：你跳过出牌阶段且<b>“残光”</b>无效；当你失去手牌时，你积蓄等同此牌点数×10的<b>“热量”</b>。<font color='grey'>&lt;闲置状态&gt;</font><br>\z
+<font color='red'>666(MAX)</font>：<b>“热量”</b>达至<font color='red'>666</font>时，你减1点体力上限并摸两张牌，然后进行一个额外的回合，<b>“残光”</b>的【杀】改为火【杀】、【闪】改为【酒】，下个出牌阶段结束时，重置<b>“残光”</b>、<b>“切腹”</b>和<b>“热量”</b>指数。<font color='red'>&lt;火人状态&gt;</font>",
+	["canguang"] = "残光",
+	[":canguang"] = "你可以将<b>黑色</b>手牌当【杀】、<b><font color='red'>红色</font></b>手牌当【闪】使用或打出。",
+	["qiefu"] = "切腹",
+	[":qiefu"] = "<img src=\"image/mark/@VVV_qiefu.png\"><b><font color='red'>火人状态限定技，</font></b>你可以弃置两张手牌，视为对你使用火【杀】，然后将此【杀】的伤害转移给任意名相连的其他角色。",
+	
 	----------杂兵----------
 	["zabing"] = "支援机",
 	[":zabing"] = "出牌阶段，你可以召唤支援机（副将）。\n一局游戏第一次召唤需消耗一次使用权。\n一回合过后、造成或受到1点伤害后，支援机耐久度-1，若为0则待机。\n待机出牌阶段开始时回复1点耐久度，再出击需待耐久度回复至满。",
@@ -14301,35 +14856,40 @@ if show_winrate then
 	zombie = sgs.General(extension, "zombie", "die", 0, true, true, true)]]--颜神的神作（Serious AI Bugs）
 	local g_property = "<font color='red'><b>欢迎来玩高达杀！</b></font>"
 	if dlc then
-		if t[1] then
-			g_property = ""
-			local x, y = 0, 0
-			for i,a in ipairs(t) do
-				local str = a:split("=")
-				local first = str[1]
-				local second = str[2]
-				local rate = second:split("/")
-				if rate[2] == "0" then
+	
+		local t = readData("Record")
+	
+		if next(t["Record"]) ~= nil then
+			local round = function(num, idp)
+				local mult = 10^(idp or 0)
+				return math.floor(num * mult + 0.5) / mult
+			end
+		
+			g_property = "\n".."<b>总胜率</b>"
+			local rate = t["Record"]["GameTimes"]
+			local text = rate[1] .. "/" .. rate[2]
+			if rate[2] == 0 then
+				rate = "未知"
+			else
+				rate = round(rate[1]/rate[2]*100).."%"
+			end
+			g_property = g_property.." = "..text.." <b>("..rate..")</b>"
+			
+			for key, rate in pairs(t["Record"]) do			
+				local text = rate[1] .. "/" .. rate[2]
+				if rate[2] == 0 then
 					rate = "未知"
 				else
-					local round = function(num, idp)
-						local mult = 10^(idp or 0)
-						return math.floor(num * mult + 0.5) / mult
-					end
 					rate = round(rate[1]/rate[2]*100).."%"
 				end
-				if first == "GameTimes" then
-					g_property = g_property.."\n".."<b>总胜率</b>"
-					x, y = second, rate
-				else
-					g_property = g_property.."\n"..sgs.Sanguosha:translate(first)
-				end
-				g_property = g_property.." = "..second.." <b>("..rate..")</b>"
-				if i == #t then
-					g_property = g_property.."\n".."<b>总胜率</b>"
-					g_property = g_property.." = "..x.." <b>("..y..")</b>"
+				if key ~= "GameTimes" then
+					g_property = g_property.."\n"..sgs.Sanguosha:translate(key)
+					g_property = g_property.." = "..text.." <b>("..rate..")</b>"
 				end
 			end
+
+			g_property = g_property.."\n".."<b>总胜率</b>"
+			g_property = g_property.." = "..text.." <b>("..rate..")</b>"
 		end
 	end
 	sgs.LoadTranslationTable{
@@ -14387,22 +14947,23 @@ end
 lucky_translate = function() --动态描述
 	if lucky_card then
 		if sgs.Sanguosha:translate("itemshow") == "itemshow" then
-			saveItem("Coin", 0)
+			saveItem("Item", "Coin", 0)
 			for _,zb in pairs(zb_list) do
-				saveItem(zb, 0)
+				saveItem("Zabing", zb, 0)
 			end
 			for _,sk in pairs(g_skin_cp) do
-				for _,t in ipairs(sk) do
-					if string.find(t, "_skin") then
-						saveItem(t, 0)
+				for _,s in ipairs(sk) do
+					if string.find(s, "_skin") then
+						saveItem("Skin", s, 0)
 					end
 				end
 			end
 			for _,un in pairs(unlock_list) do
-				saveItem(un, 0)
+				saveItem("Unlock", un, 0)
 			end
 		end
 		
+		--[[
 		local file = io.open(g2data, "r")
 		local tt = {}
 		if file ~= nil then
@@ -14439,9 +15000,57 @@ lucky_translate = function() --动态描述
 			return order(a) < order(b)
 		end
 		table.sort(tt, sort)
+		]]
 		
+		local t = readData("*")
+		
+		--Item
 		local g2_property = "<br><img src=\"image/mark/@coin.png\" height=\"25\" width=\"25\">G币 = "
+		g2_property = g2_property .. t["Item"]["Coin"]
 		
+		--Zabing
+		g2_property = g2_property .. "<br><br><b>支援机使用权(35%×1, 25%×3)</b>:"
+		for _,zb in pairs(zb_list) do
+			g2_property = g2_property .. sgs.Sanguosha:translate(zb) .. " = " .. t["Zabing"][zb]
+			g2_property = g2_property .. "<br>"
+		end
+		
+		--Skin
+		g2_property = g2_property .. "<br><b>机体皮肤(25%)</b>:<br>"
+		for _,sk in pairs(g_skin_cp) do
+			for _,s in ipairs(sk) do
+				if string.find(s, "_skin") then
+					local n = tonumber(string.sub(s, string.len(s)))
+					local girl = ""
+					if table.contains({"CHAR_ZAKU_skin2", "SINANJU_skin2"}, s) then
+						girl = "(机娘红桃)"
+					end
+					g2_property = g2_property .. sgs.Sanguosha:translate(s) .. "皮肤" .. string.rep("I", n) .. girl .. ": "
+					if t["Skin"][s] == 0 then
+						g2_property = g2_property .. "<font color='grey'>未获得</font>"
+					else
+						g2_property = g2_property .. "<font color='red'>已获得</font>"
+					end
+					g2_property = g2_property .. "<br>"
+				end
+			end
+		end
+		
+		--Unlock
+		g2_property = g2_property .. "<br><b>解禁机体(15% 必定全新机体)</b>:<br>"
+		for i,un in pairs(unlock_list) do
+			g2_property = g2_property .. sgs.Sanguosha:translate(un) .. ": "
+			if t["Unlock"][un] == 0 then
+				g2_property = g2_property .. "<font color='grey'>未解禁</font>"
+			else
+				g2_property = g2_property .. "<font color='red'>已解禁</font>"
+			end
+			if i ~= #unlock_list then
+				g2_property = g2_property .. "<br>"
+			end
+		end
+		
+		--[[
 		for i,a in pairs(tt) do
 			local s = a:split("=")
 			if s[1] == "Coin" then
@@ -14478,6 +15087,7 @@ lucky_translate = function() --动态描述
 				g2_property = g2_property .. "<br>"
 			end
 		end
+		]]
 
 		sgs.LoadTranslationTable{
 			["itemshow"] = "扭蛋机",
