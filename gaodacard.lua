@@ -494,6 +494,7 @@ sgs.LoadTranslationTable{
 	<b>效果</b>：被命中的目标角色须打出一张【闪】，否则对其造成1点伤害。",
 	["shoot-jink"] = "%src 使用了【%dest】，请打出一张【闪】",
 	["#shoot_failed"] = "%from 对 %to 使用的 %card 命中失败",
+	["#use_shoot"] = "%from 使用了【%arg】，目标是 %to",
 	
 	["pierce_shoot"] = "贯穿射击",
 	[":pierce_shoot"] = "基本牌\

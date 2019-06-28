@@ -517,6 +517,7 @@ generalName2BGM = function(name)
 		{"BGM0", "IIVS"},
 		{"BGM1", "HARUTE", "ELSQ", "00QFS"},
 		{"BGM2", "CAG"},
+		{"BGM4", "X1"},
 		{"BGM"..math.random(5, 6), "BUILD_BURNING", "TRY_BURNING"},
 		{"BGM7", "DESTINY", "SP_DESTINY"},
 		{"BGM8", "IMPULSE", "SAVIOUR"},
@@ -531,7 +532,7 @@ generalName2BGM = function(name)
 		{"BGM17", "JUSTICE"},
 		{"BGM18", "CFR"},
 		{"BGM19", "PROVIDENCE"},
-		{"BGM20", "EXIA_R"},
+		{"BGM20", "EXIA", "EXIA_R"},
 		{"BGM21", "SBS", "DARK_MATTER"},
 		{"BGM22", "ZETA", "ZETA_WR", "HYAKU_SHIKI"},
 		{"BGM23", "BARBATOS"},
@@ -5340,6 +5341,157 @@ if not sgs.Sanguosha:getSkill("#fansheTM") then skills:append(fansheTM) end
 if not sgs.Sanguosha:getSkill("#fansheP") then skills:append(fansheP) end
 sgs.Sanguosha:addSkills(skills)
 extension:insertRelatedSkills("fanshe", "#fansheD")
+
+X1 = sgs.General(extension, "X1", "OTHERS", 4, true, true)
+
+haidaocard = sgs.CreateSkillCard{
+	name = "shoot",
+	skill_name = "haidao",
+	will_throw = false,
+	filter = function(self, targets, to_select)
+		local card = sgs.Sanguosha:getCard(230)
+		card:setSuit(sgs.Card_NoSuit)
+		card:setNumber(0)
+		card:setSkillName("haidao")
+		
+		local qtargets = sgs.PlayerList()
+		for _, p in ipairs(targets) do
+			qtargets:append(p)
+		end
+		return card and card:targetFilter(qtargets, to_select, sgs.Self) 
+			and not sgs.Self:isProhibited(to_select, card, qtargets)
+	end,
+	about_to_use = function(self, room, use)
+		self:cardOnUse(room, use)
+	end,
+	on_use = function(self, room, source, targets)
+		local log = sgs.LogMessage()
+		log.type = "#use_shoot"
+		log.from = source
+		for _,t in pairs(targets) do
+			log.to:append(t)
+		end
+		log.arg = "shoot"
+		room:sendLog(log)
+	
+		room:addPlayerHistory(source, "Shoot")
+	
+		local hit_targets, missed_targets = {}, sgs.SPlayerList()
+		math.random()
+		for _, t in ipairs(targets) do
+			if source:inMyAttackRange(t) or math.random(1, 100) <= 70 then
+				room:setEmotion(t, "lockon")
+				table.insert(hit_targets, t)
+			else
+				missed_targets:append(t)
+			end
+		end
+		if not missed_targets:isEmpty() then
+			local log = sgs.LogMessage()
+			log.type = "#shoot_failed"
+			log.from = source
+			log.to = missed_targets
+			log.card_str = self:toString()
+			room:sendLog(log)
+		end
+		for _, t in ipairs(hit_targets) do
+			room:cardEffect(self, source, t)
+		end
+	end,
+	on_effect = function(self, effect)
+		local source = effect.from
+		local target = effect.to
+		local room = source:getRoom()
+		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
+			local damage = sgs.DamageStruct()
+			damage.from = source
+			damage.to = target
+			damage.damage = 1
+			damage.card = self
+			room:damage(damage)
+		end
+	end
+}
+
+haidaocard1 = sgs.CreateSkillCard{
+	name = "haidao",
+	will_throw = false,
+	filter = function(self, targets, to_select, player)
+		return player:distanceTo(to_select) == 1 and #targets < 1
+	end,
+	on_effect = function(self, effect)
+		local source = effect.from
+		local target = effect.to
+		local room = source:getRoom()
+		local damage = sgs.DamageStruct()
+		damage.from = source
+		damage.to = target
+		damage.damage = 1
+		damage.reason = "haidao"
+		room:damage(damage)
+	end
+}
+
+haidaovs = sgs.CreateZeroCardViewAsSkill{
+	name = "haidao",
+	response_pattern = "@@haidao",
+	view_as = function(self)
+		local name = sgs.Self:property("haidao"):toString()
+		if name == "shoot" then
+			local acard = haidaocard:clone()
+			acard:setSkillName(self:objectName())
+			return acard
+		elseif name == "armor" then
+			local acard = haidaocard1:clone()
+			acard:setSkillName(self:objectName())
+			return acard
+		else
+			local acard = sgs.Sanguosha:cloneCard(name, sgs.Card_NoSuit, 0)
+			acard:setSkillName(self:objectName())
+			return acard
+		end
+	end
+}
+
+haidao = sgs.CreateTriggerSkill
+{
+	name = "haidao",
+	events = {sgs.CardFinished},
+	view_as_skill = haidaovs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card then
+			if use.card:isKindOf("Weapon") then
+				local list = {"slash", "shoot"}
+				local n = math.random(1, 2)
+				room:setPlayerProperty(player, "haidao", sgs.QVariant(list[n]))
+				room:askForUseCard(player, "@@haidao", "#haidao" .. n)
+				room:setPlayerProperty(player, "haidao", sgs.QVariant())
+			elseif use.card:isKindOf("Armor") then
+				room:setPlayerProperty(player, "haidao", sgs.QVariant("armor"))
+				room:askForUseCard(player, "@@haidao", "#haidao3")
+				room:setPlayerProperty(player, "haidao", sgs.QVariant())
+			elseif use.card:isKindOf("DefensiveHorse") or use.card:isKindOf("OffensiveHorse") then
+				room:setPlayerProperty(player, "haidao", sgs.QVariant("iron_chain"))
+				room:askForUseCard(player, "@@haidao", "#haidao4")
+				room:setPlayerProperty(player, "haidao", sgs.QVariant())
+			elseif use.card:isKindOf("IronChain") and use.card:getSkillName() == "haidao" then
+				for _, p in sgs.qlist(use.to) do
+					if p:isAlive() and (not p:isNude()) and p:objectName() ~= player:objectName() then
+						local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_EXTRACTION, player:objectName())
+						local card_id = room:askForCardChosen(player, p, "h", self:objectName())
+						room:obtainCard(player, sgs.Sanguosha:getCard(card_id), reason, room:getCardPlace(card_id) ~= sgs.Player_PlaceHand)
+					end
+				end
+			end
+		end
+	end
+}
+
+
+
+X1:addSkill(haidao)
 
 SHINING = sgs.General(extension, "SHINING", "OTHERS", 4, true, false)--LUA By ZY
 
@@ -10397,7 +10549,7 @@ STRIKE_NOIR:addSkill(huantong)
 STRIKE_NOIR:addSkill(huantongc)
 STRIKE_NOIR:addSkill(jianmie)
 
-EXIA = sgs.General(extension, "EXIA", "CB", 4, true, true)
+EXIA = sgs.General(extension, "EXIA", "CB", 4, true, false)
 
 yuanjian = sgs.CreateTriggerSkill{
 	name = "yuanjian",
@@ -10408,15 +10560,28 @@ yuanjian = sgs.CreateTriggerSkill{
 		if use.card and use.card:isKindOf("Slash") then
 		
 			if use.card:getSuit() == sgs.Card_Spade or (player:getMark("exia_transammark") > 0 and use.card:isBlack()) then
+				room:sendCompulsoryTriggerLog(player, self:objectName())
 				local log = sgs.LogMessage()
 				log.type = "#IgnoreArmor"
 				log.from = player
 				log.card_str = use.card:toString()
 				room:sendLog(log)
+				
+				if player:getMark("exia_transammark") == 0 then
+					room:broadcastSkillInvoke(self:objectName(), 1)
+				end
+				
 				for _,p in sgs.qlist(use.to) do
 					if p:getMark("Equips_of_Others_Nullified_to_You") == 0 then
 						p:addQinggangTag(use.card)
 					end
+				end
+			end
+			
+			if use.card:getSuit() == sgs.Card_Heart then
+				room:sendCompulsoryTriggerLog(player, self:objectName())
+				if player:getMark("exia_transammark") == 0 then
+					room:broadcastSkillInvoke(self:objectName(), 2)
 				end
 			end
 			
@@ -10426,9 +10591,18 @@ yuanjian = sgs.CreateTriggerSkill{
 					if not p:isKongcheng() then
 						if not invoked then
 							invoked = true
-							--room:broadcastSkillInvoke(self:objectName())
 						end
-						if not room:askForSkillInvoke(player, self:objectName(), data) then continue end
+						
+						local _data = sgs.QVariant()
+						_data:setValue(p)
+						if not room:askForSkillInvoke(player, self:objectName(), _data) then continue end
+						
+						if player:getMark("exia_transammark") == 0 then
+							room:broadcastSkillInvoke(self:objectName(), 3)
+						else
+							room:broadcastSkillInvoke(self:objectName(), math.random(5, 7))
+						end
+						
 						local id = room:askForCardChosen(player, p, "h", self:objectName())
 						room:throwCard(id, p, player)
 					end
@@ -10436,11 +10610,19 @@ yuanjian = sgs.CreateTriggerSkill{
 			end
 			
 			if use.card:getSuit() == sgs.Card_Diamond or (player:getMark("exia_transammark") > 0 and use.card:isRed()) then
-				--room:broadcastSkillInvoke(self:objectName())
 				local jink_list = sgs.QList2Table(player:getTag("Jink_" .. use.card:toString()):toIntList())
 				for i, p in sgs.qlist(use.to) do
 					if jink_list[i + 1] == 1 then
-						if not room:askForSkillInvoke(player, self:objectName(), data) then continue end
+						local _data = sgs.QVariant()
+						_data:setValue(p)
+						if not room:askForSkillInvoke(player, self:objectName(), _data) then continue end
+						
+						if player:getMark("exia_transammark") == 0 then
+							room:broadcastSkillInvoke(self:objectName(), 4)
+						else
+							room:broadcastSkillInvoke(self:objectName(), math.random(5, 7))
+						end
+						
 						jink_list[i + 1] = 2
 					end
 				end
@@ -10456,7 +10638,7 @@ yuanjian_range = sgs.CreateTargetModSkill{
 	name = "#yuanjian_range",
 	pattern = "Slash|red",
 	distance_limit_func = function(self, player, card)
-		if card:getSuit() == sgs.Card_Heart or player:getMark("exia_transammark") > 0 then
+		if player and player:hasSkill("yuanjian") and (card:getSuit() == sgs.Card_Heart or player:getMark("exia_transammark") > 0) then
 			return 1
 		end
 	end
@@ -13932,9 +14114,9 @@ sgs.LoadTranslationTable{
 	["BUSTER"] = "暴风",
 	["#BUSTER"] = "决意的炮火",
 	["shuangqiang"] = "双枪",
-	[":shuangqiang"] = "出牌阶段，你可以将一张装备牌或锦囊牌当【杀】使用，对目标角色造成伤害后：若为前者，你弃置其装备区里的一张牌；后者，你弃置其一张手牌。",
+	[":shuangqiang"] = "出牌阶段，你可以将一张装备牌或锦囊牌当【杀】使用，此【杀】对目标角色造成伤害后：若为前者，你弃置其装备区里的一张牌；后者，你弃置其一张手牌。",
     ["zuzhuang"] = "组装",
-	[":zuzhuang"] = "出牌阶段，你可以将一张装备牌和一张锦囊牌当【杀】使用，对目标角色造成伤害后：你弃置其装备区里的所有牌，或你弃置其所有手牌。",
+	[":zuzhuang"] = "出牌阶段，你可以将一张装备牌和一张锦囊牌当【杀】使用，此【杀】对目标角色造成伤害后：你弃置其装备区里的所有牌，或你弃置其所有手牌。",
     ["zze"] = "弃置其装备区里的所有牌",
 	["zzh"] = "弃置其所有手牌",
 	["~BUSTER"] = "嘁…界限高度么？",
@@ -14394,10 +14576,10 @@ sgs.LoadTranslationTable{
 	
 	["EXIA"] = "艾斯亚",
 	["#EXIA"] = "能天使",
-	["~EXIA"] = "",
+	["~EXIA"] = "エクシアァァァ!",
 	["designer:EXIA"] = "高达杀制作组",
 	["cv:EXIA"] = "刹那·F·塞尔",
-	--["illustrator:EXIA"] = "wch5621628",
+	["illustrator:EXIA"] = "修",
 	["yuanjian"] = "原剑",
 	[":yuanjian"] = "当你使用【杀】时，若此【杀】花色为：<br>\z
 <b>①</b>黑桃：无视防具。<br>\z
@@ -14407,6 +14589,14 @@ sgs.LoadTranslationTable{
 	["exia_transam"] = "TRANS-AM",
 	[":exia_transam"] = "<img src=\"image/mark/@exia_transam.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以摸三张牌，然后此阶段：你可以额外使用两张【杀】，<b>黑色</b>【杀】可发动<b>“原剑”①③</b>，<b><font color='red'>红色</font></b>【杀】可发动<b>“原剑”②④</b>，你于下个回合不可使用【杀】。",
 	["@exia_transam"] = "TRANS-AM",
+	["$yuanjian1"] = "GNソード!",
+	["$yuanjian2"] = "GNダガー!",
+	["$yuanjian3"] = "GNブレイド!",
+	["$yuanjian4"] = "俺に…触れるな!",
+	["$yuanjian5"] = "違う…!",
+	["$yuanjian6"] = "絶対に違う!",
+	["$yuanjian7"] = "俺が! 俺達が!! ガンダムだ!!",
+	["$exia_transam"] = "トランザム!",
 	
 	["EXIA_R"] = "艾斯亚R",
 	["#EXIA_R"] = "能天使",

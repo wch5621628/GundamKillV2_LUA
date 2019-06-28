@@ -3499,6 +3499,34 @@ end
 sgs.ai_use_value["jianmie"] = sgs.ai_use_value.FireSlash + 0.1
 sgs.ai_use_priority["jianmie"] = sgs.ai_use_priority.Slash + 0.1
 
+--艾斯亚
+sgs.ai_skill_invoke.yuanjian = function(self, data)
+	local target = data:toPlayer()
+	return not self:isFriend(target)
+end
+
+local exia_transam_skill = {}
+exia_transam_skill.name = "exia_transam"
+table.insert(sgs.ai_skills, exia_transam_skill)
+exia_transam_skill.getTurnUseCard = function(self, inclusive)
+    if self.player:getMark("@exia_transam") > 0 and willUse(self, "Slash") then
+		local n = self:getCardsNum("Slash")
+		self:sort(self.enemies, "hp")
+		local card = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+		local p = self.enemies[1]
+		if (n >= 3 and #self.enemies > 0 and not p:isProhibited(p, card) and self:slashIsEffective(card, p, self.player) and not p:hasSkill("mosu")) or self.player:getHp() == 1 then
+			return sgs.Card_Parse("#exia_transam:.:")
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#exia_transam"] = function(card, use, self)
+	use.card = card
+end
+
+sgs.ai_use_value["exia_transam"] = sgs.ai_use_value.Analeptic
+sgs.ai_use_priority["exia_transam"] = sgs.ai_use_priority.Analeptic
+
 --艾斯亚R
 local duzhan_skill={}
 duzhan_skill.name="duzhan"
@@ -3913,11 +3941,11 @@ harute_transam_skill.getTurnUseCard = function(self, inclusive)
 				n = n + 1
 			end
 		end
-		local can_invoke = false
+
 		self:sort(self.enemies, "hp")
 		local card = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
 		local p = self.enemies[1]
-		if n >= 4 and #self.enemies > 0 and not p:isProhibited(p, card) and self:slashIsEffective(card, p, self.player) and not p:hasSkill("mosu") then
+		if n >= 3 and #self.enemies > 0 and not p:isProhibited(p, card) and self:slashIsEffective(card, p, self.player) and not p:hasSkill("mosu") then
 			return sgs.Card_Parse("#harute_transam:.:")
 		end
 	end
