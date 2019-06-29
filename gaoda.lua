@@ -2533,7 +2533,7 @@ baizhan = sgs.CreateTriggerSkill{
 			room:throwCard(id, damage.to, player)
 			local card = sgs.Sanguosha:getCard(id)
 			
-			if card:isKindOf("Shoot") then return false end --BUG:can't view as
+			if string.find(card:objectName(), "shoot") then return false end --BUG:can't view as
 			
 			if not player:isNude() and card:getNumber() < 13 and not card:isKindOf("EquipCard") and (card:isAvailable(player) or card:isKindOf("Analeptic")) then
 				room:setPlayerMark(player, "baizhan", card:getNumber())
@@ -5466,7 +5466,7 @@ haidao = sgs.CreateTriggerSkill
 				local list = {"slash", "shoot"}
 				local n = math.random(1, 2)
 				room:setPlayerProperty(player, "haidao", sgs.QVariant(list[n]))
-				room:askForUseCard(player, "@@haidao", "#haidao" .. n)
+				room:askForUseCard(player, "@@haidao", "#haidao" .. n) -- lua/ai/smart-ai.lua:4718: attempt to index local 'skill_card' (a nil value)
 				room:setPlayerProperty(player, "haidao", sgs.QVariant())
 			elseif use.card:isKindOf("Armor") then
 				room:setPlayerProperty(player, "haidao", sgs.QVariant("armor"))
@@ -5489,9 +5489,116 @@ haidao = sgs.CreateTriggerSkill
 	end
 }
 
+pifeng = sgs.CreateTriggerSkill
+{
+	name = "pifeng",
+	events = {sgs.DamageForseen},
+	frequency = sgs.Skill_Compulsory,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local damage = data:toDamage()
+		if (damage.nature ~= sgs.DamageStruct_Normal or (damage.card and damage.card:isRed() and string.find(damage.card:objectName(), "shoot"))) and player:getMark("pifeng") < 3 then
+			--room:broadcastSkillInvoke(self:objectName())
+			room:notifySkillInvoked(player, "pifeng")
+			room:setEmotion(player, "skill_nullify")
+			local log = sgs.LogMessage()
+			log.type = "#pifeng"
+			log.from = player
+			log.arg = "pifeng"
+			room:sendLog(log)
+			
+			room:addPlayerMark(player, "pifeng", damage.damage)
+			if player:getMark("pifeng") >= 3 then
+				room:loseMaxHp(player)
+				room:handleAcquireDetachSkills(player, "-pifeng|kulu")
+			end
+			
+			return true
+		end
+	end
+}
 
+kulu = sgs.CreateTriggerSkill
+{
+	name = "kulu",
+	events = {sgs.DamageInflicted},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local damage = data:toDamage()
+		if damage.card and (damage.card:isKindOf("Slash") or string.find(damage.card:objectName(), "shoot")) then
+			local card = room:askForCard(player, "Slash", "@@kulu", data, sgs.Card_MethodRecast, nil, false, self:objectName(), false)
+			if card then
+				
+				--重铸
+				local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_RECAST, player:objectName(), self:objectName(), "")
+				local id = card:getId()
+				local moves = sgs.CardsMoveList()
+				local move = sgs.CardsMoveStruct(id, nil, sgs.Player_DiscardPile, reason)
+				moves:append(move)
+				room:moveCardsAtomic(moves, true)
+				player:broadcastSkillInvoke("@recast")
+
+				local log = sgs.LogMessage()
+				log.type = "#UseCard_Recast"
+				log.from = player
+				log.card_str = card:toString()
+				room:sendLog(log)
+
+				player:drawCards(1, "recast")
+
+				if card:isBlack() then
+					if damage.from and not damage.from:isNude() then
+						local id = room:askForCardChosen(player, damage.from, "he", self:objectName())
+						room:throwCard(id, damage.from, player)
+					end
+				else
+					if damage.card:objectName() ~= "pierce_shoot" then
+						local guard = card
+						if guard then
+						
+							local gcard = guard
+							guard = sgs.Sanguosha:cloneCard("Guard", gcard:getSuit(), gcard:getNumber())
+							guard:addSubcard(gcard)
+							guard:setSkillName("kulu")
+							room:useCard(sgs.CardUseStruct(guard, player, player))
+
+							--已挡
+							room:setCardFlag(damage.card, "Guard", player)
+							
+							math.random()
+							if (string.find(damage.card:objectName(), "shoot") or math.random(1, 100) <= 70) then
+								local log = sgs.LogMessage()
+								log.type = "#burstd"
+								log.to:append(damage.to)
+								log.arg = damage.damage
+								log.arg2 = damage.damage - 1
+								room:sendLog(log)
+								damage.damage = damage.damage - 1
+								if damage.damage < 1 then
+									room:setEmotion(player, "skill_nullify")									
+									return true
+								end
+								data:setValue(damage)
+							else
+								local log = sgs.LogMessage()
+								log.type = "#Guard_failed"
+								log.from = player
+								log.card_str = guard:toString()
+								room:sendLog(log)
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+}
 
 X1:addSkill(haidao)
+X1:addSkill(pifeng)
+local skills = sgs.SkillList()
+if not sgs.Sanguosha:getSkill("kulu") then skills:append(kulu) end
+sgs.Sanguosha:addSkills(skills)
 
 SHINING = sgs.General(extension, "SHINING", "OTHERS", 4, true, false)--LUA By ZY
 
@@ -10203,7 +10310,7 @@ luaqiangwumark = sgs.CreateTriggerSkill{
 			room:setPlayerProperty(player, "luaqiangwucolor", sgs.QVariant())
 		else
 			local use = data:toCardUse()
-			if player:getPhase() == sgs.Player_Play and use.card and use.card:isKindOf("Shoot") then
+			if player:getPhase() == sgs.Player_Play and use.card and string.find(use.card:objectName(), "shoot") then
 				local color = "none"
 				if use.card:isBlack() then
 					color = "black"
@@ -10222,7 +10329,7 @@ luaqiangwub = sgs.CreateTriggerSkill{
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local damage = data:toDamage()		
-		if damage.card and (damage.card:isKindOf("Slash") or damage.card:isKindOf("Shoot") and damage.card:objectName() ~= "pierce_shoot") then
+		if damage.card and (damage.card:isKindOf("Slash") or string.find(damage.card:objectName(), "shoot") and damage.card:objectName() ~= "pierce_shoot") then
 			
 			if player:getMark("luaqiangwub") == 0 then return false end
 			local can_invoke = false
@@ -10255,7 +10362,7 @@ luaqiangwub = sgs.CreateTriggerSkill{
 				room:useCard(sgs.CardUseStruct(guard, player, player))
 
 				math.random()
-				if (damage.card:isKindOf("Shoot") or math.random(1, 100) <= 70) then
+				if (string.find(damage.card:objectName(), "shoot") or math.random(1, 100) <= 70) then
 					local log = sgs.LogMessage()
 					log.type = "#burstd"
 					log.to:append(damage.to)
@@ -13776,6 +13883,32 @@ sgs.LoadTranslationTable{
 	["$canying6"] = "こんな所にノコノコ来るから!",
 	["$canying7"] = "それで帰れるはずだ!出てけよ!",
 	
+	["#X1"] = "新十字先锋",
+	["~X1"] = "",
+	["designer:X1"] = "高达杀制作组",
+	["cv:X1"] = "金凯杜·那乌",
+	["illustrator:X1"] = "wch5621628",
+	["haidao"] = "海盗",
+	[":haidao"] = "当你使用以下的牌后：<br>\z
+武器牌：你可以视为随机使用一张【杀】或【射击】。<font color='grey'>&lt;斩刀破坏枪&gt;</font><br>\z
+防具牌：你可以对一名距离1的角色造成1点伤害。<font color='grey'>&lt;烙铁标识器&gt;</font><br>\z
+坐骑牌：你可以视为使用【铁索连环】，然后获得其他目标各一张手牌。<font color='grey'>&lt;剪形锚&gt;</font>",
+	["#haidao1"] = "海盗：请选择【杀】的目标<p align=\"right\">&lt;斩刀破坏枪 - 光束斩刀&gt;</p>",
+	["#haidao2"] = "海盗：请选择【射击】的目标<p align=\"right\">&lt;斩刀破坏枪 - 破坏枪&gt;</p>",
+	["#haidao3"] = "海盗：请选择一名距离1的角色，对其造成1点伤害<p align=\"right\">&lt;烙铁标识器&gt;</p>",
+	["#haidao4"] = "海盗：请选择【铁索连环】的目标<p align=\"right\">&lt;剪形锚&gt;</p>",
+	["~haidao"] = "选择目标→确定",
+	["pifeng"] = "披風",
+	[":pifeng"] = "<b><font color='blue'>锁定技，</font></b>你防止属性或<font color='red'><b>红色</b></font>【射击】伤害，累计防止不少于3点伤害后，你减1点体力上限，失去<b>“披风”</b>“并获得<b>““骷颅”</b>“。",
+	["#pifeng"] = "%from 的“%arg”被触发，防止了伤害",
+	["kulu"] = "骷颅",
+	[":kulu"] = "当你受到【杀】或【射击】的伤害时，你可以重铸：<br>\z
+<b>黑色</b>【杀】：你弃置伤害来源一张牌。<font color='grey'>&lt;热能短刀&gt;</font><br>\z
+<font color='red'><b>红色</b></font>【杀】：视为你将此牌当【挡】使用。<font color='grey'>&lt;光束盾&gt;</font>",
+	["@@kulu"] = "骷颅：请重铸一张【杀】：<br>\z
+<font color='black'><b>黑色</b></font>【杀】：弃置伤害来源一张牌<p align=\"right\">&lt;热能短刀&gt;</p>\z
+<font color='red'><b>红色</b></font>【杀】：视为将此牌当【挡】使用<p align=\"right\">&lt;光束盾&gt;</p>",
+	
 	["SHINING"] = "闪光",
 	["#SHINING"] = "天降的战士",
 	["~SHINING"] = "駄目だ……駄目だ駄目だぁッ!!",
@@ -14929,7 +15062,7 @@ sgs.LoadTranslationTable{
 	["~VVVI"] = "",
 	["designer:VVVI"] = "高达杀制作组",
 	["cv:VVVI"] = "时缟·晴人",
-	--["illustrator:VVVI"] = "",
+	["illustrator:VVVI"] = "修",
 	["#VVV"] = "舍弃人类之身",
 	["#VVV:MSG"] = "<center>是否舍弃人类之身?<br>ニンゲンヤメマスカ?<br><font color='#16b1c7'>Do you resign as a human being?</font></center>",
 	["#VVV_mode"] = "%from 进入 %arg",
