@@ -4411,3 +4411,94 @@ sgs.ai_skill_invoke.diwang = function(self, data)
 		end
 	end
 end
+
+--火人
+local canguang_skill = {}
+canguang_skill.name = "canguang"
+table.insert(sgs.ai_skills, canguang_skill)
+canguang_skill.getTurnUseCard = function(self)
+	if self.player:getMark("@HITO") >= 100 and self.player:getMark("@HITO") < 666 then return false end
+	local cards = self.player:getCards("h")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards)
+	
+	local has_anal = false
+	for _,card in ipairs(cards)  do
+		if card:isRed() and not isCard("Peach", card, self.player) and not isCard("ExNihilo", card, self.player) then
+			has_anal = true
+			break
+		end
+	end
+	
+	if not has_anal or not sgs.Analeptic_IsAvailable(self.player) then
+		local newcard
+		for _, card in ipairs(cards) do
+			if card:isBlack() and (not card:hasFlag("using")) then
+				newcard = card
+				break
+			end
+		end
+		if not newcard then return end
+
+		local card_id1 = newcard:getEffectiveId()
+
+		local name = "slash"
+		if self.player:getMark("@HITO") == 666 then
+			name = "fire_slash"
+		end
+		
+		local scard = sgs.Sanguosha:getCard(card_id1)
+		local card_str = ("%s:canguang[%s:%s]=%d"):format(name, scard:getSuitString(), scard:getNumberString(), card_id1)
+		local slash = sgs.Card_Parse(card_str)
+		return slash
+	elseif self.player:getMark("@HITO") == 666 then
+		local acard
+		for _,card in ipairs(cards)  do
+			if card:isRed() and not isCard("Peach", card, self.player) and not isCard("ExNihilo", card, self.player)
+				and not (isCard("Slash", card, self.player) and self:getCardsNum("Slash") == 1)
+				and not (isCard("Jink", card, self.player) and self:getCardsNum("Jink") == 1) then
+				acard = card
+				break
+			end
+		end
+
+		if not acard then return nil end
+		local card_str = ("ex_nihilo:canguang[%s:%s]=%d"):format(acard:getSuitString(), acard:getNumberString(), acard:getEffectiveId())
+		--AI不肯热血地喝酒，要用无中生有来骗他！
+		local analeptic = sgs.Card_Parse(card_str)
+
+		if sgs.Analeptic_IsAvailable(self.player, analeptic)
+			and self.player:usedTimes("Analeptic") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, self.player, analeptic)
+			and willUse(self, "Slash") then
+			assert(analeptic)
+			return analeptic
+		end
+	end
+end
+
+sgs.ai_use_value["canguang"] = sgs.ai_use_value.Analeptic
+sgs.ai_use_priority["canguang"] = sgs.ai_use_priority.Analeptic - 0.1
+
+sgs.ai_view_as.canguang = function(card, player, card_place)
+	if player:getMark("@HITO") >= 100 and player:getMark("@HITO") < 666 then return false end
+
+	local suit = card:getSuitString()
+	local number = card:getNumberString()
+	local card_id = card:getEffectiveId()
+	if card_place == sgs.Player_PlaceHand then
+		local pattern = sgs.Sanguosha:getCurrentCardUsePattern()
+		if pattern == "slash" and card:isBlack() then
+			if player:getMark("@HITO") == 666 then
+				return ("fire_slash:canguang[%s:%s]=%d"):format(suit, number, card_id)
+			else
+				return ("slash:canguang[%s:%s]=%d"):format(suit, number, card_id)
+			end
+		elseif card:isRed() and not card:isKindOf("Peach") then
+			if player:getMark("@HITO") < 100 and pattern == "jink" then
+				return ("jink:canguang[%s:%s]=%d"):format(suit, number, card_id)
+			elseif player:getMark("@HITO") == 666 and string.find(pattern, "analeptic") then
+				return ("analeptic:canguang[%s:%s]=%d"):format(suit, number, card_id)
+			end
+		end
+	end
+end

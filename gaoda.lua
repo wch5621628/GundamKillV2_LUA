@@ -5346,7 +5346,7 @@ X1 = sgs.General(extension, "X1", "OTHERS", 4, true, true)
 
 haidaocard = sgs.CreateSkillCard{
 	name = "shoot",
-	skill_name = "haidao",
+	skill_name = "haidaocard",
 	will_throw = false,
 	filter = function(self, targets, to_select)
 		local card = sgs.Sanguosha:getCard(230)
@@ -5414,7 +5414,8 @@ haidaocard = sgs.CreateSkillCard{
 }
 
 haidaocard1 = sgs.CreateSkillCard{
-	name = "haidao",
+	name = "haidaocard",
+	skill_name = "haidaocard",
 	will_throw = false,
 	filter = function(self, targets, to_select, player)
 		return player:distanceTo(to_select) == 1 and #targets < 1
@@ -5439,15 +5440,15 @@ haidaovs = sgs.CreateZeroCardViewAsSkill{
 		local name = sgs.Self:property("haidao"):toString()
 		if name == "shoot" then
 			local acard = haidaocard:clone()
-			acard:setSkillName(self:objectName())
+			acard:setSkillName("haidaocard")
 			return acard
 		elseif name == "armor" then
 			local acard = haidaocard1:clone()
-			acard:setSkillName(self:objectName())
+			acard:setSkillName("haidaocard")
 			return acard
 		else
 			local acard = sgs.Sanguosha:cloneCard(name, sgs.Card_NoSuit, 0)
-			acard:setSkillName(self:objectName())
+			acard:setSkillName("haidaocard")
 			return acard
 		end
 	end
@@ -5456,33 +5457,46 @@ haidaovs = sgs.CreateZeroCardViewAsSkill{
 haidao = sgs.CreateTriggerSkill
 {
 	name = "haidao",
-	events = {sgs.CardFinished},
+	events = {sgs.CardFinished, sgs.CardUsed},
 	view_as_skill = haidaovs,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local use = data:toCardUse()
 		if use.card then
-			if use.card:isKindOf("Weapon") then
-				local list = {"slash", "shoot"}
-				local n = math.random(1, 2)
-				room:setPlayerProperty(player, "haidao", sgs.QVariant(list[n]))
-				room:askForUseCard(player, "@@haidao", "#haidao" .. n) -- lua/ai/smart-ai.lua:4718: attempt to index local 'skill_card' (a nil value)
-				room:setPlayerProperty(player, "haidao", sgs.QVariant())
-			elseif use.card:isKindOf("Armor") then
-				room:setPlayerProperty(player, "haidao", sgs.QVariant("armor"))
-				room:askForUseCard(player, "@@haidao", "#haidao3")
-				room:setPlayerProperty(player, "haidao", sgs.QVariant())
-			elseif use.card:isKindOf("DefensiveHorse") or use.card:isKindOf("OffensiveHorse") then
-				room:setPlayerProperty(player, "haidao", sgs.QVariant("iron_chain"))
-				room:askForUseCard(player, "@@haidao", "#haidao4")
-				room:setPlayerProperty(player, "haidao", sgs.QVariant())
-			elseif use.card:isKindOf("IronChain") and use.card:getSkillName() == "haidao" then
-				for _, p in sgs.qlist(use.to) do
-					if p:isAlive() and (not p:isNude()) and p:objectName() ~= player:objectName() then
-						local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_EXTRACTION, player:objectName())
-						local card_id = room:askForCardChosen(player, p, "h", self:objectName())
-						room:obtainCard(player, sgs.Sanguosha:getCard(card_id), reason, room:getCardPlace(card_id) ~= sgs.Player_PlaceHand)
+			if event == sgs.CardFinished then
+				if use.card:isKindOf("Weapon") then
+					local list = {"slash", "shoot"}
+					local n = math.random(1, 2)
+					room:setPlayerProperty(player, "haidao", sgs.QVariant(list[n]))
+					room:askForUseCard(player, "@@haidao", "#haidao" .. n) -- lua/ai/smart-ai.lua:4718: attempt to index local 'skill_card' (a nil value)
+					room:setPlayerProperty(player, "haidao", sgs.QVariant())
+				elseif use.card:isKindOf("Armor") then
+					room:setPlayerProperty(player, "haidao", sgs.QVariant("armor"))
+					room:askForUseCard(player, "@@haidao", "#haidao3")
+					room:setPlayerProperty(player, "haidao", sgs.QVariant())
+				elseif use.card:isKindOf("DefensiveHorse") or use.card:isKindOf("OffensiveHorse") then
+					room:setPlayerProperty(player, "haidao", sgs.QVariant("iron_chain"))
+					room:askForUseCard(player, "@@haidao", "#haidao4")
+					room:setPlayerProperty(player, "haidao", sgs.QVariant())
+				elseif use.card:isKindOf("IronChain") and use.card:getSkillName() == "haidaocard" then
+					for _, p in sgs.qlist(use.to) do
+						if p:isAlive() and (not p:isNude()) and p:objectName() ~= player:objectName() then
+							local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_EXTRACTION, player:objectName())
+							local card_id = room:askForCardChosen(player, p, "h", self:objectName())
+							room:obtainCard(player, sgs.Sanguosha:getCard(card_id), reason, room:getCardPlace(card_id) ~= sgs.Player_PlaceHand)
+						end
 					end
+				end
+			elseif use.card:getSkillName() == "haidaocard" then
+				local name = player:property("haidao"):toString()
+				if name == "slash" then
+					room:broadcastSkillInvoke(self:objectName(), 1)
+				elseif name == "shoot" then
+					room:broadcastSkillInvoke(self:objectName(), 2)
+				elseif name == "armor" then
+					room:broadcastSkillInvoke(self:objectName(), 3)
+				elseif name == "iron_chain" then
+					room:broadcastSkillInvoke(self:objectName(), 4)
 				end
 			end
 		end
@@ -5498,7 +5512,6 @@ pifeng = sgs.CreateTriggerSkill
 		local room = player:getRoom()
 		local damage = data:toDamage()
 		if (damage.nature ~= sgs.DamageStruct_Normal or (damage.card and damage.card:isRed() and string.find(damage.card:objectName(), "shoot"))) and player:getMark("pifeng") < 3 then
-			--room:broadcastSkillInvoke(self:objectName())
 			room:notifySkillInvoked(player, "pifeng")
 			room:setEmotion(player, "skill_nullify")
 			local log = sgs.LogMessage()
@@ -5509,8 +5522,11 @@ pifeng = sgs.CreateTriggerSkill
 			
 			room:addPlayerMark(player, "pifeng", damage.damage)
 			if player:getMark("pifeng") >= 3 then
+				room:broadcastSkillInvoke(self:objectName(), math.random(2, 3))
 				room:loseMaxHp(player)
 				room:handleAcquireDetachSkills(player, "-pifeng|kulu")
+			else
+				room:broadcastSkillInvoke(self:objectName(), 1)
 			end
 			
 			return true
@@ -5547,11 +5563,13 @@ kulu = sgs.CreateTriggerSkill
 				player:drawCards(1, "recast")
 
 				if card:isBlack() then
+					room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
 					if damage.from and not damage.from:isNude() then
 						local id = room:askForCardChosen(player, damage.from, "he", self:objectName())
 						room:throwCard(id, damage.from, player)
 					end
 				else
+					room:broadcastSkillInvoke(self:objectName(), math.random(3, 4))
 					if damage.card:objectName() ~= "pierce_shoot" then
 						local guard = card
 						if guard then
@@ -5559,7 +5577,7 @@ kulu = sgs.CreateTriggerSkill
 							local gcard = guard
 							guard = sgs.Sanguosha:cloneCard("Guard", gcard:getSuit(), gcard:getNumber())
 							guard:addSubcard(gcard)
-							guard:setSkillName("kulu")
+							guard:setSkillName("kulucard")
 							room:useCard(sgs.CardUseStruct(guard, player, player))
 
 							--已挡
@@ -5599,6 +5617,7 @@ X1:addSkill(pifeng)
 local skills = sgs.SkillList()
 if not sgs.Sanguosha:getSkill("kulu") then skills:append(kulu) end
 sgs.Sanguosha:addSkills(skills)
+X1:addRelateSkill("kulu")
 
 SHINING = sgs.General(extension, "SHINING", "OTHERS", 4, true, false)--LUA By ZY
 
@@ -10143,6 +10162,8 @@ jianhun = sgs.CreateTriggerSkill{
 				analeptic:addSubcard(use.card)
 				use.card = analeptic
 				data:setValue(use)
+				room:addPlayerHistory(player, "ExNihilo", -1)
+				room:addPlayerHistory(player, "Analeptic")
 			end
 		end
 	end
@@ -13159,6 +13180,7 @@ VVV = sgs.CreateTriggerSkill{
 fuwen = sgs.CreateTriggerSkill{
 	name = "fuwen",
 	events = {sgs.CardFinished, sgs.CardResponded, sgs.EventPhaseChanging, sgs.CardsMoveOneTime, sgs.EventPhaseEnd},
+	frequency = sgs.Skill_Compulsory,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		if player:getMark("@HITO") < 100 then
@@ -13238,7 +13260,7 @@ fuwen = sgs.CreateTriggerSkill{
 	end
 }
 
-canguang = sgs.CreateOneCardViewAsSkill{
+canguangvs = sgs.CreateOneCardViewAsSkill{
 	name = "canguang",
 	response_or_use = true,
 	view_filter = function(self, card)
@@ -13288,6 +13310,25 @@ canguang = sgs.CreateOneCardViewAsSkill{
 	enabled_at_response = function(self, player, pattern)
 		if player:getMark("@HITO") >= 100 and player:getMark("@HITO") < 666 then return false end
 		return (pattern == "slash") or (player:getMark("@HITO") < 100 and pattern == "jink") or (player:getMark("@HITO") == 666 and string.find(pattern, "analeptic"))
+	end
+}
+
+canguang = sgs.CreateTriggerSkill{
+	name = "canguang",
+	events = {sgs.PreCardUsed},
+	view_as_skill = canguangvs,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card and use.card:isKindOf("ExNihilo") and use.card:getSkillName() == self:objectName() and player:getAI() then --AI不肯热血地喝酒，要用无中生有来骗他！
+			local analeptic = sgs.Sanguosha:cloneCard("analeptic", use.card:getSuit(), use.card:getNumber())
+			analeptic:setSkillName(self:objectName())
+			analeptic:addSubcard(use.card)
+			use.card = analeptic
+			data:setValue(use)
+			room:addPlayerHistory(player, "ExNihilo", -1)
+			room:addPlayerHistory(player, "Analeptic")
+		end
 	end
 }
 
@@ -13883,8 +13924,9 @@ sgs.LoadTranslationTable{
 	["$canying6"] = "こんな所にノコノコ来るから!",
 	["$canying7"] = "それで帰れるはずだ!出てけよ!",
 	
+	["X1"] = "海盜X1",
 	["#X1"] = "新十字先锋",
-	["~X1"] = "",
+	["~X1"] = "キンケドゥ…? キンケドゥ?! …シーブックゥゥーッ! ",
 	["designer:X1"] = "高达杀制作组",
 	["cv:X1"] = "金凯杜·那乌",
 	["illustrator:X1"] = "wch5621628",
@@ -13893,21 +13935,34 @@ sgs.LoadTranslationTable{
 武器牌：你可以视为随机使用一张【杀】或【射击】。<font color='grey'>&lt;斩刀破坏枪&gt;</font><br>\z
 防具牌：你可以对一名距离1的角色造成1点伤害。<font color='grey'>&lt;烙铁标识器&gt;</font><br>\z
 坐骑牌：你可以视为使用【铁索连环】，然后获得其他目标各一张手牌。<font color='grey'>&lt;剪形锚&gt;</font>",
+	["haidaocard"] = "海盗",
 	["#haidao1"] = "海盗：请选择【杀】的目标<p align=\"right\">&lt;斩刀破坏枪 - 光束斩刀&gt;</p>",
 	["#haidao2"] = "海盗：请选择【射击】的目标<p align=\"right\">&lt;斩刀破坏枪 - 破坏枪&gt;</p>",
 	["#haidao3"] = "海盗：请选择一名距离1的角色，对其造成1点伤害<p align=\"right\">&lt;烙铁标识器&gt;</p>",
 	["#haidao4"] = "海盗：请选择【铁索连环】的目标<p align=\"right\">&lt;剪形锚&gt;</p>",
 	["~haidao"] = "选择目标→确定",
 	["pifeng"] = "披風",
-	[":pifeng"] = "<b><font color='blue'>锁定技，</font></b>你防止属性或<font color='red'><b>红色</b></font>【射击】伤害，累计防止不少于3点伤害后，你减1点体力上限，失去<b>“披风”</b>“并获得<b>““骷颅”</b>“。",
+	[":pifeng"] = "<b><font color='blue'>锁定技，</font></b>你防止属性或<font color='red'><b>红色</b></font>【射击】伤害，累计防止不少于3点伤害后，你减1点体力上限，失去<b>“披风”</b>并获得<b>“骷颅”</b>。",
 	["#pifeng"] = "%from 的“%arg”被触发，防止了伤害",
 	["kulu"] = "骷颅",
 	[":kulu"] = "当你受到【杀】或【射击】的伤害时，你可以重铸：<br>\z
 <b>黑色</b>【杀】：你弃置伤害来源一张牌。<font color='grey'>&lt;热能短刀&gt;</font><br>\z
 <font color='red'><b>红色</b></font>【杀】：视为你将此牌当【挡】使用。<font color='grey'>&lt;光束盾&gt;</font>",
+	["kulucard"] = "骷颅",
 	["@@kulu"] = "骷颅：请重铸一张【杀】：<br>\z
 <font color='black'><b>黑色</b></font>【杀】：弃置伤害来源一张牌<p align=\"right\">&lt;热能短刀&gt;</p>\z
 <font color='red'><b>红色</b></font>【杀】：视为将此牌当【挡】使用<p align=\"right\">&lt;光束盾&gt;</p>",
+	["$haidao1"] = "ビームザンバーだなら…",
+	["$haidao2"] = "ザンバスター!",
+	["$haidao3"] = "ブランド・マーカー!",
+	["$haidao4"] = "シザー・アンカー!",
+	["$pifeng1"] = "ABCマントがっ!",
+	["$pifeng2"] = "奇跡を見せてやろうじゃないか!",
+	["$pifeng3"] = "死を強いる指導者の、どこに真実がある!? 寝言を言うなぁー!",
+	["$kulu1"] = "マシンが良くても、パイロットが性能を引き出せなければ!",
+	["$kulu2"] = "可能な限り接近する!",
+	["$kulu3"] = "シールドを使わされたのは始めてだぜ!",
+	["$kulu4"] = "あんたが初めてだぜ…! 俺にクロスボーンのシールドを使わせたのは!",
 	
 	["SHINING"] = "闪光",
 	["#SHINING"] = "天降的战士",
