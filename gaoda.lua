@@ -442,7 +442,10 @@ GdsVoice = function(player, start)
 	local room = player:getRoom()
 	local emotion = player:property("emotion"):toString()
 	if emotion == "seshia" then
-		if start then
+		if math.random(1, 2) == 2 then --福利动画
+			emotion = "seshia2"
+			room:broadcastSkillInvoke("gdsvoice", math.random(23, 24))
+		elseif start then
 			room:broadcastSkillInvoke("gdsvoice", math.random(1, 4))
 		else
 			room:broadcastSkillInvoke("gdsvoice", math.random(2, 4))
@@ -3849,6 +3852,7 @@ xiaya = sgs.CreateViewAsSkill{
 	end
 }
 
+--[[ 旧版：
 zaishi = sgs.CreateTriggerSkill{
 	name = "zaishi",
 	frequency = sgs.Skill_NotFrequent,
@@ -3887,6 +3891,40 @@ zaishi = sgs.CreateTriggerSkill{
 			room:sendLog(log)
 		end
 	end
+}
+]]
+
+zaishi = sgs.CreateTriggerSkill{
+    name = "zaishi",
+    events = {sgs.AfterDrawNCards},
+    on_trigger = function(self, event, player, data)
+        local room = player:getRoom()
+		if room:askForSkillInvoke(player, self:objectName(), data) then
+			local ids = room:getNCards(2, false)
+			local move = sgs.CardsMoveStruct()
+			move.card_ids = ids
+			move.to = nil
+			move.to_place = sgs.Player_PlaceTable
+			move.reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_TURNOVER, player:objectName(), self:objectName(), nil)
+			room:moveCardsAtomic(move, true)
+			local red_card = sgs.Sanguosha:cloneCard("slash")
+			local black_card = sgs.Sanguosha:cloneCard("slash")
+			for _, id in sgs.qlist(ids) do
+				if sgs.Sanguosha:getCard(id):isRed() then
+					red_card:addSubcard(id)
+				else
+					black_card:addSubcard(id)
+				end
+			end
+			if red_card:subcardsLength() > 0 then
+				room:broadcastSkillInvoke(self:objectName())
+				player:obtainCard(red_card)
+			end
+			if black_card:subcardsLength() > 0 then
+				room:throwCard(black_card, nil)
+			end
+		end
+    end
 }
 
 wangling = sgs.CreateTriggerSkill{
@@ -5342,7 +5380,7 @@ if not sgs.Sanguosha:getSkill("#fansheP") then skills:append(fansheP) end
 sgs.Sanguosha:addSkills(skills)
 extension:insertRelatedSkills("fanshe", "#fansheD")
 
-X1 = sgs.General(extension, "X1", "OTHERS", 4, true, true)
+X1 = sgs.General(extension, "X1", "OTHERS", 4, true, false)
 
 haidaocard = sgs.CreateSkillCard{
 	name = "shoot",
@@ -5352,7 +5390,7 @@ haidaocard = sgs.CreateSkillCard{
 		local card = sgs.Sanguosha:getCard(230)
 		card:setSuit(sgs.Card_NoSuit)
 		card:setNumber(0)
-		card:setSkillName("haidao")
+		card:setSkillName("haidaocard")
 		
 		local qtargets = sgs.PlayerList()
 		for _, p in ipairs(targets) do
@@ -5470,7 +5508,7 @@ haidao = sgs.CreateTriggerSkill
 					room:setPlayerProperty(player, "haidao", sgs.QVariant(list[n]))
 					room:askForUseCard(player, "@@haidao", "#haidao" .. n) -- lua/ai/smart-ai.lua:4718: attempt to index local 'skill_card' (a nil value)
 					room:setPlayerProperty(player, "haidao", sgs.QVariant())
-				elseif use.card:isKindOf("Armor") then
+				elseif use.card:isKindOf("Armor") then --BUG:EPYON triggers this twice?
 					room:setPlayerProperty(player, "haidao", sgs.QVariant("armor"))
 					room:askForUseCard(player, "@@haidao", "#haidao3")
 					room:setPlayerProperty(player, "haidao", sgs.QVariant())
@@ -5541,7 +5579,7 @@ kulu = sgs.CreateTriggerSkill
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local damage = data:toDamage()
-		if damage.card and (damage.card:isKindOf("Slash") or string.find(damage.card:objectName(), "shoot")) then
+		if damage.card and (damage.card:isKindOf("Slash") or string.find(damage.card:objectName(), "shoot")) and not player:isKongcheng() then
 			local card = room:askForCard(player, "Slash", "@@kulu", data, sgs.Card_MethodRecast, nil, false, self:objectName(), false)
 			if card then
 				
@@ -8001,7 +8039,7 @@ helie = sgs.CreateTriggerSkill{
 				room:broadcastSkillInvoke(self:objectName(), math.random(5, 6))
 			end
 			player:throwAllHandCards()
-			player:drawCards(player:getMaxHp())
+			player:drawCards(player:getHp()) -- 旧版：player:drawCards(player:getMaxHp())
 		end
 	end,
 }
@@ -10362,6 +10400,7 @@ luaqiangwub = sgs.CreateTriggerSkill{
 			if not can_invoke then return false end
 			
 			local guard
+			-- BUG: 木牛流马不能跳出来，MethodUse或MethodResponse
 			if damage.from then
 				guard = room:askForCard(player, "Guard#.|spade", "@luaqiangwu-Guard:"..damage.card:objectName()..":"..damage.from:objectName(), sgs.QVariant(), sgs.Card_MethodNone, damage.from)
 			else
@@ -11070,7 +11109,7 @@ zaishengcard = sgs.CreateSkillCard{
 			else
 				room:throwCard(ids:at(0), nil)
 			end
-		until n >= subcard
+		until n == subcard + 1 -- 旧版：until n >= subcard
 	end,
 }
 
@@ -13166,7 +13205,7 @@ local skills = sgs.SkillList()
 if not sgs.Sanguosha:getSkill("REX_buff") then skills:append(REX_buff) end
 sgs.Sanguosha:addSkills(skills)
 
-VVVI = sgs.General(extension, "VVVI", "BREAK", 5, true, true)
+VVVI = sgs.General(extension, "VVVI", "BREAK", 5, true, false)
 
 VVV = sgs.CreateTriggerSkill{
 	name = "#VVV",
@@ -13389,22 +13428,42 @@ qiefuvs = sgs.CreateViewAsSkill{
 
 qiefu = sgs.CreateTriggerSkill{
 	name = "qiefu",
-	events = {sgs.DamageInflicted},
+	events = {sgs.DamageInflicted, sgs.TargetSpecified},
 	frequency = sgs.Skill_Limited,
 	view_as_skill = qiefuvs,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
-		local damage = data:toDamage()
-		if damage.card and damage.card:getSkillName() == self:objectName() and not damage.chain and not damage.transfer then
-			local victims = player:property("VVV_qiefu"):toString():split("+")
-			for _,p in sgs.qlist(room:getOtherPlayers(player)) do
-				if table.contains(victims, p:objectName()) then
-					damage.to = p
-					damage.transfer = true
-					room:damage(damage)
+		if event == sgs.DamageInflicted then
+			local damage = data:toDamage()
+			if damage.card and damage.card:getSkillName() == self:objectName() and not damage.chain and not damage.transfer then
+				local victims = player:property("VVV_qiefu"):toString():split("+")
+				for _,p in sgs.qlist(room:getOtherPlayers(player)) do
+					if table.contains(victims, p:objectName()) then
+						damage.to = p
+						damage.transfer = true
+						room:damage(damage)
+					end
 				end
+				return true
 			end
-			return true
+		elseif player:getAI() then --AI不使用闪
+			local use = data:toCardUse()
+			if use.card and use.card:isKindOf("Slash") and use.card:getSkillName() == self:objectName() then
+				local jink_table = sgs.QList2Table(player:getTag("Jink_" .. use.card:toString()):toIntList())
+				local index = 1
+				for _, p in sgs.qlist(use.to) do
+					if not player:isAlive() then break end
+					local _data = sgs.QVariant()
+					_data:setValue(p)
+					if p:objectName() == player:objectName() then
+						jink_table[index] = 0
+					end
+					index = index + 1
+				end
+				local jink_data = sgs.QVariant()
+				jink_data:setValue(Table2IntList(jink_table))
+				player:setTag("Jink_" .. use.card:toString(), jink_data)
+			end
 		end
 	end
 }
@@ -13724,7 +13783,8 @@ sgs.LoadTranslationTable{
 	["xiaya"] = "夏亚",
 	[":xiaya"] = "你可以将一张<font color='red'><b>红色</b></font>牌当【闪】使用或打出。",
 	["zaishi"] = "再世",
-	[":zaishi"] = "摸牌阶段摸牌时，你可以放弃摸牌，然后展示你的手牌，你重复摸牌，直到你拥有<font color='red'><b>三张红色</b></font>手牌，或以此法获得四张牌。",
+	-- 旧版：[":zaishi"] = "摸牌阶段摸牌时，你可以放弃摸牌，然后展示你的手牌，你重复摸牌，直到你拥有<font color='red'><b>三张红色</b></font>手牌，或以此法获得四张牌。",
+	[":zaishi"] = "摸牌阶段摸牌后，你可以亮出牌堆顶的两张牌，然后获得其中所有<font color='red'><b>红色</b></font>牌。",
 	["wangling"] = "亡灵",
 	[":wangling"] = "当你受到一次伤害时，你可以失去技能<b>“夏亚”</b>或<b>“再世”</b>并防止此伤害，然后视为你对伤害来源使用一张【杀】。",
 	["wanglingcard"] = "亡灵",
@@ -14368,7 +14428,8 @@ sgs.LoadTranslationTable{
 	["FREEDOM"] = "自由",
 	["#FREEDOM"] = "自由之翼",
 	["helie"] = "核裂",
-	[":helie"] = "出牌阶段开始和结束时，你可以弃置所有手牌，然后摸等同于你体力上限的牌。",
+	-- 旧版：[":helie"] = "出牌阶段开始和结束时，你可以弃置所有手牌，然后摸等同于你体力上限的牌。",
+	[":helie"] = "出牌阶段开始或结束时，你可以弃置所有手牌并摸等同于你体力值的牌。",
 	["jiaoxie"] = "缴械",
 	[":jiaoxie"] = "当你使一名其他角色进入濒死状态、或一名其他角色使你进入濒死状态时，你可以令其失去一项技能（不可为限定技或觉醒技）。",
 	["zhongzi"] = "种子",
@@ -14833,7 +14894,8 @@ sgs.LoadTranslationTable{
 	["cv:REBORNS_GUNDAM"] = "利邦兹·阿尔马克",
 	["illustrator:REBORNS_GUNDAM"] = "NOS7IM",
 	["zaisheng"] = "再生",
-	[":zaisheng"] = "出牌阶段限一次，你可以弃置任意张牌，然后重复亮出牌堆顶的牌，若为基本牌，你获得之，直到你以此法获得X张牌（X为你以此法弃置的牌数）。",
+	-- 旧版：[":zaisheng"] = "出牌阶段限一次，你可以弃置任意张牌，然后重复亮出牌堆顶的牌，若为基本牌，你获得之，直到你以此法获得X张牌（X为你以此法弃置的牌数）。",
+	[":zaisheng"] = "出牌阶段限一次，你可以弃置任意张牌，然后重复亮出牌堆顶的牌，若为基本牌，你获得之，直到你以此法获得X+1张牌（X为你以此法弃置的牌数）。",
 	["reborns_transam"] = "TRANS-AM",
 	[":reborns_transam"] = "<img src=\"image/mark/@reborns_transam.png\"><b><font color='red'>限定技，</font></b>出牌阶段，你可以令你于本回合发动<b>“机动”</b>或<b>“奋攻”</b>时无次数限制，且发动<b>“机动”</b>时不需弃牌。",
 	["@reborns_transam"] = "TRANS-AM",

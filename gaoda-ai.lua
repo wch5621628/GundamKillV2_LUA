@@ -1200,7 +1200,7 @@ sgs.ai_view_as.xiaya = function(card, player, card_place)
 end
 
 sgs.ai_skill_invoke.zaishi = function(self, data)
-	return self:getSuitNum("red",false,self.player) < 2
+	return true -- 旧版：self:getSuitNum("red",false,self.player) < 2
 end
 
 sgs.ai_skill_invoke.wangling = function(self, data)
@@ -1785,6 +1785,122 @@ sgs.ai_skill_use["@@canying"] = function(self, prompt)
 	return "."
 end
 
+--海盗X1
+sgs.ai_skill_use["@@haidao"] = function(self, prompt)
+    self:updatePlayers()
+	if #self.enemies == 0 then return "." end
+	local name = self.player:property("haidao"):toString()
+	if name == "slash" then
+		local acard = sgs.Sanguosha:cloneCard(name, sgs.Card_NoSuit, 0)
+		acard:setSkillName("haidaocard")
+	
+	    self:sort(self.enemies, "defense")
+		local targets = {}
+		for _,enemy in ipairs(self.enemies) do
+		    if (not self:slashProhibit(acard, enemy)) and self.player:canSlash(enemy, acard) then
+				if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, acard) then break end
+				table.insert(targets, enemy:objectName())
+			end
+		end
+		if #targets > 0 then
+			return ("%s:haidaocard[no_suit:0]=.->%s"):format(name, table.concat(targets, "+"))
+		else
+		    return "."
+		end
+	elseif name == "armor" then
+	    self:sort(self.enemies, "hp")
+		for _, enemy in ipairs(self.enemies) do
+			if self.player:distanceTo(enemy) == 1 then
+				return ("#haidaocard:.:->%s"):format(enemy:objectName())
+			end
+		end
+	elseif name == "iron_chain" then
+		local acard = sgs.Sanguosha:cloneCard(name, sgs.Card_NoSuit, 0)
+		acard:setSkillName("haidaocard")
+	
+	    local situation_is_friend = false
+	    for _, friend in ipairs(self.friends) do
+		    if friend:isChained() and (not friend:isProhibited(friend, acard)) then
+			    situation_is_friend = true
+		    end
+		end
+		if situation_is_friend then
+		    local targets = {}
+			for _, friend in ipairs(self.friends) do
+			    if friend:isChained() and (not friend:isProhibited(friend, acard)) then
+			        if #targets >= 2 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, acard) then break end
+					table.insert(targets, friend:objectName())
+		        end
+			end
+			if #targets > 0 then
+				return ("%s:haidaocard[no_suit:0]=.->%s"):format(name, table.concat(targets, "+"))
+			else
+			    return "."
+			end
+		else
+		    local chained_enemy = 0
+			local targets = {}
+			for _, enemy in ipairs(self.enemies) do
+			    if enemy:isChained() then
+				    chained_enemy = chained_enemy + 1
+				end
+				if (not enemy:isChained()) and (not enemy:isProhibited(enemy, acard)) then
+					if #targets >= 2 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, acard) then break end
+					table.insert(targets, enemy:objectName())
+				end
+			end
+			if (#targets + chained_enemy) > 0 then
+				return ("%s:haidaocard[no_suit:0]=.->%s"):format(name, table.concat(targets, "+"))
+			else
+			    return "."
+			end
+	    end
+	elseif name == "shoot" then
+		local acard = sgs.Sanguosha:getCard(230)
+		acard:setSuit(sgs.Card_NoSuit)
+		acard:setNumber(0)
+		acard:setSkillName("haidaocard")
+	
+	    self:sort(self.enemies, "defense")
+		local targets = {}
+		for _,enemy in ipairs(self.enemies) do
+		    if (not enemy:isProhibited(enemy, acard)) then
+				if #targets >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, acard) then break end
+				table.insert(targets, enemy:objectName())
+			end
+		end
+		if #targets > 0 then
+			return ("#shoot:.:->%s"):format(table.concat(targets, "+"))
+		else
+		    return "."
+		end
+	end
+	return "."
+end
+
+sgs.ai_skill_cardask["@@kulu"] = function(self, data)
+	local cards = self.player:getCards("h")
+	cards = sgs.QList2Table(cards)
+	self:sortByUseValue(cards, true)
+	
+	local damage = data:toDamage()
+	for _,card in ipairs(cards) do
+		if card:isKindOf("Slash") and card:isRed() then
+			return card:getEffectiveId()
+		end
+	end
+	
+	if damage.from and not self:isFriend(damage.from) then
+		for _,card in ipairs(cards) do
+			if card:isKindOf("Slash") and card:isBlack() then
+				return card:getEffectiveId()
+			end
+		end
+	end
+	
+	return "."
+end
+
 --闪光
 sgs.ai_skill_cardask["@@shanguang"] = function(self, data)
 	local source = data:toPlayer()
@@ -1991,7 +2107,7 @@ aoyi_skill.getTurnUseCard = function(self, inclusive)
 				end
 			end
 		elseif self.player:getMark("@aoyi") == 3 then
-			if self.player:getHandcardNum() >= 2 then
+			if self.player:getHandcardNum() >= 2 and #self.enemies > 0 then
 				return sgs.Card_Parse("#aoyi:.:")
 			end
 		end
@@ -4502,3 +4618,52 @@ sgs.ai_view_as.canguang = function(card, player, card_place)
 		end
 	end
 end
+
+local qiefu_skill = {}
+qiefu_skill.name = "qiefu"
+table.insert(sgs.ai_skills, qiefu_skill)
+qiefu_skill.getTurnUseCard = function(self, inclusive)
+	if self.player:getMark("@VVV_qiefu") > 0 and self.player:getMark("@HITO") == 666 then
+		if self.player:getHandcardNum() >= 2 and #self.enemies > 0 then
+			return sgs.Card_Parse("#qiefu:.:")
+		end
+	end
+end
+
+sgs.ai_skill_use_func["#qiefu"] = function(card, use, self)
+	local cards = self.player:getCards("h")
+	cards = sgs.QList2Table(cards)
+	self:sortByKeepValue(cards)
+	use.card = sgs.Card_Parse("#qiefu:"..cards[1]:getId().."+"..cards[2]:getId()..":")
+	if use.to then
+		local target_sets = {}
+		
+		for _, enemy in ipairs(self.enemies) do
+			local targets = {}
+			
+			for _, neig in ipairs(self.enemies) do
+				if enemy:objectName() == neig:objectName() or enemy:isAdjacentTo(neig) then
+					table.insert(targets, neig)
+				end
+			end
+			
+			table.insert(target_sets, targets)
+		end
+		
+		local n_max, t = 0, 0
+		
+		for i, set in ipairs(target_sets) do
+			if #set > n_max then
+				n_max = #set
+				t = i
+			end
+		end
+		
+		for _, p in ipairs(target_sets[t]) do
+			use.to:append(p)
+		end
+	end
+end
+
+sgs.ai_use_value["qiefu"] = sgs.ai_use_value.FireSlash + 0.1
+sgs.ai_use_priority["qiefu"] = sgs.ai_use_priority.FireSlash + 0.1
