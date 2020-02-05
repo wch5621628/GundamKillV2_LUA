@@ -9283,7 +9283,7 @@ bachi = sgs.CreateTriggerSkill{
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local use = data:toCardUse()
-		if use.card and use.card:isKindOf("Slash") and use.card:isRed() and use.to:contains(player) and player:canDiscard(player, "he") then
+		if use.card and (use.card:isKindOf("Slash") or use.card:isKindOf("Shoot")) and use.card:isRed() and use.to:contains(player) and player:canDiscard(player, "he") then
 			local players = room:getOtherPlayers(player)
 			local can_invoke = false
 			for _, p in sgs.qlist(players) do
@@ -9293,7 +9293,7 @@ bachi = sgs.CreateTriggerSkill{
 				end
 			end
 			if can_invoke then
-				local prompt = "@bachi:" .. use.from:objectName()
+				local prompt = "@bachi:" .. use.from:objectName() .. ":" .. use.card:objectName()
 				if room:askForUseCard(player, "@@bachi", prompt, -1, sgs.Card_MethodDiscard) then
 					local log1 = sgs.LogMessage()
 					log1.type = "$CancelTarget"
@@ -9357,10 +9357,23 @@ hubi = sgs.CreateTriggerSkill{
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		if player:getPhase() == sgs.Player_Start then
+			local card = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
 			for _,p in sgs.qlist(room:getAlivePlayers()) do
 				if p:getPile("&hubi"):length() > 0 then
-					local card = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
 					card:addSubcards(p:getPile("&hubi"))
+				end
+			end
+			if card:subcardsLength() > 0 then
+				local choice = room:askForChoice(player, self:objectName(), "hubi_recycle+hubi_archery", data)
+				if choice == "hubi_archery" then
+					local use = sgs.CardUseStruct()
+					local archery_attack = sgs.Sanguosha:cloneCard("archery_attack", sgs.Card_SuitToBeDecided, -1)
+					archery_attack:addSubcards(card:getSubcards())
+					archery_attack:setSkillName(self:objectName())
+					use.card = archery_attack
+					use.from = player
+					room:useCard(use)
+				else
 					local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_EXCHANGE_FROM_PILE, player:objectName())
 					room:obtainCard(player, card, reason)
 				end
@@ -9371,6 +9384,10 @@ hubi = sgs.CreateTriggerSkill{
 
 AKATSUKI:addSkill(bachi)
 AKATSUKI:addSkill(hubi)
+
+AKATSUKI_OOWASHI = sgs.General(extension, "AKATSUKI_OOWASHI", "ORB", 3, false, true)
+
+AKATSUKI_OOWASHI:addSkill(bachi)
 
 SF = sgs.General(extension, "SF", "ORB", 4, true, false)
 
@@ -14619,7 +14636,7 @@ sgs.LoadTranslationTable{
 	["$tiebi"] = "こっちに来ないで!",
 	["$kongju"] = "みんな沈め!!",
 	
-	["AKATSUKI"] = "晓",
+	["AKATSUKI"] = "晓 不知火",
 	["#AKATSUKI"] = "黄金的意志",
 	["~AKATSUKI"] = "嘻嘻…果然我是…\
 	化不可能为可能的…",
@@ -14627,16 +14644,25 @@ sgs.LoadTranslationTable{
 	["cv:AKATSUKI"] = "穆·拉·弗拉加",
 	["illustrator:AKATSUKI"] = "wch5621628",
 	["bachi"] = "八呎",
-	[":bachi"] = "当你成为<b><font color='red'>红色</font></b>【杀】的目标时，你可以弃置一张牌并转移给一至两名其他角色。",
-	["@bachi"] = "%src 对你使用【杀】，你可以弃置一张牌发动“八呎”",
+	-- 旧版：[":bachi"] = "当你成为<b><font color='red'>红色</font></b>【杀】的目标时，你可以弃置一张牌并转移给一至两名其他角色。",
+	[":bachi"] = "当你成为<b><font color='red'>红色</font></b>【杀】或<b><font color='red'>红色</font></b>【射击】的目标时，你可以弃置一张牌并转移给一至两名其他角色。",
+	["@bachi"] = "%src 对你使用【%dest】，你可以弃置一张牌发动“八呎”",
 	["~bachi"] = "选择一张牌→指定一至两名其他角色→确定",
 	["hubi"] = "护壁",
+	-- 旧版：[":hubi"] = "出牌阶段限一次，你可以将一张【闪】置于一名角色的武将牌上，称为<b>“护壁”</b>，然后你摸一张牌，其可以将<b>“护壁”</b>使用或打出。准备阶段开始时，你回收<b>“护壁”</b>或将<b>“护壁”</b>当【万箭齐发】使用。",
 	[":hubi"] = "出牌阶段限一次，你可以将一张【闪】置于一名角色的武将牌上，称为<b>“护壁”</b>，然后你摸一张牌，其可以将<b>“护壁”</b>使用或打出。准备阶段开始时，你回收<b>“护壁”</b>。",
 	["&hubi"] = "护壁",
 	["$bachi1"] = "买多买多!",
 	["$bachi2"] = "噢哩呀!",
 	["$hubi1"] = "我是化不可能为可能的男人。",
 	["$hubi2"] = "回来之前别被击沉唷!",
+	
+	["AKATSUKI_OOWASHI"] = "晓 大鹫",
+	["#AKATSUKI_OOWASHI"] = "黄金的意志",
+	["~AKATSUKI_OOWASHI"] = "",
+	["designer:AKATSUKI_OOWASHI"] = "wch5621628 & Sankies & NOS7IM",
+	["cv:AKATSUKI_OOWASHI"] = "卡嘉莲·由拉·阿斯哈",
+	["illustrator:AKATSUKI_OOWASHI"] = "wch5621628",
 	
 	["SF"] = "突击自由",
 	["#SF"] = "黄金之翼",

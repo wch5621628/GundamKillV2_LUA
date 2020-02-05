@@ -3184,6 +3184,17 @@ end
 sgs.ai_use_value["hubi"] = 5
 sgs.ai_use_priority["hubi"] = 0.1
 
+sgs.ai_skill_choice.hubi = function(self, choices, data)
+	choices = choices:split("+")
+	local use = sgs.CardUseStruct()
+	local card = sgs.Sanguosha:cloneCard("archery_attack")
+	self:useTrickCard(card, use)
+	if use.card then
+		return choices[2]
+	end
+	return choices[1]
+end
+
 --突击自由
 local daijin_skill = {}
 daijin_skill.name = "daijin"
