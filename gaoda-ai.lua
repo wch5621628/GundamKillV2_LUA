@@ -1203,6 +1203,15 @@ sgs.ai_skill_invoke.zaishi = function(self, data)
 	return true -- 旧版：self:getSuitNum("red",false,self.player) < 2
 end
 
+sgs.ai_skill_askforag["zaishi"] = function(self, card_ids)
+	local cards = {}
+	for _, id in ipairs(card_ids) do
+		table.insert(cards, sgs.Sanguosha:getCard(id))
+	end
+	self:sortByUseValue(cards, false)
+	return cards[1]:getId()
+end
+
 sgs.ai_skill_invoke.wangling = function(self, data)
     local damage = data:toDamage()
 	
@@ -2809,7 +2818,7 @@ sgs.ai_skill_invoke.helie = function(self, data)
 			n = n + 1
 		end
 	end
-	return n == 0 and self.player:getHandcardNum() < self.player:getMaxHp()
+	return n == 0 and self.player:getHandcardNum() < self.player:getHp() -- 旧版：self.player:getMaxHp()
 end
 
 sgs.ai_skill_invoke.jiaoxie = function(self, data)
@@ -3132,7 +3141,7 @@ sgs.ai_skill_invoke.zhongcheng = function(self, data)
 	not (damage.from:getEquips():length() == 1 and damage.from:getArmor() and damage.from:getArmor():getClassName() == "SilverLion")
 end
 
---晓
+--晓 不知火
 sgs.ai_skill_use["@@bachi"]=function(self,prompt)
     self:updatePlayers()
     if #self.enemies > 0 then
@@ -3193,6 +3202,15 @@ sgs.ai_skill_choice.hubi = function(self, choices, data)
 		return choices[2]
 	end
 	return choices[1]
+end
+
+--晓 大鹫
+sgs.ai_skill_invoke.dajiu = function(self, data)
+	local damage = data:toDamage()
+	if damage.from then
+		return not self:isFriend(damage.from) or damage.from:isNude() or damage.from:getCardCount() > 3
+	end
+	return true
 end
 
 --突击自由

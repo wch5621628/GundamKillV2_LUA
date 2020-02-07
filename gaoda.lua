@@ -541,7 +541,7 @@ generalName2BGM = function(name)
 		{"BGM23", "BARBATOS"},
 		{"BGM24", "GUNDAM", "CHAR_ZAKU"},
 		{"BGM25", "SHINING"},
-		{"BGM26", "DESTROY", "AKATSUKI", "IJ", "LEGEND"},
+		{"BGM26", "DESTROY", "AKATSUKI", "AKATSUKI_OOWASHI", "IJ", "LEGEND"},
 		{"BGM27", "SF"},
 		{"BGM28", "LUPUS", "REX"},
 		{"BGM29", "STRIKE_NOIR"},
@@ -2666,6 +2666,30 @@ GUNDAM:addSkill(zhongjie)
 
 CHAR_ZAKU = sgs.General(extension, "CHAR_ZAKU", "ZEON", 4, true, false)
 
+xiaya = sgs.CreateViewAsSkill{
+	name = "xiaya",
+	n = 1,
+	response_or_use = true,
+	view_filter = function(self, selected, to_select)
+		return to_select:isRed()
+	end,
+	view_as = function(self, cards)
+		if #cards == 1 then
+			local card = cards[1]
+			local jink = sgs.Sanguosha:cloneCard("jink", card:getSuit(), card:getNumber())
+			jink:setSkillName(self:objectName())
+			jink:addSubcard(card:getId())
+			return jink
+		end
+	end,
+	enabled_at_play = function(self, player)
+		return false
+	end,
+	enabled_at_response = function(self, player, pattern)
+		return pattern == "jink"
+	end
+}
+
 huixing = sgs.CreateTriggerSkill{
     name = "huixing",
     events = {sgs.AfterDrawNCards, --[[sgs.CardsMoveOneTime,]] sgs.CardResponded},
@@ -2717,7 +2741,7 @@ huixing = sgs.CreateTriggerSkill{
     end
 }
 
-CHAR_ZAKU:addSkill("xiaya")
+CHAR_ZAKU:addSkill(xiaya)
 CHAR_ZAKU:addSkill(huixing)
 
 ZETA = sgs.General(extension, "ZETA", "EFSF", 4, true, false)
@@ -2941,7 +2965,7 @@ tuci = sgs.CreateTriggerSkill{
 ZETA:addSkill(bianxing)
 ZETA:addSkill(chihun)
 ZETA:addSkill(jvjian)
-ZETA_WR:addSkill("bianxing")
+ZETA_WR:addSkill(bianxing)
 ZETA_WR:addSkill(chonglang)
 ZETA_WR:addSkill(chonglangdistance)
 ZETA_WR:addSkill(tuci)
@@ -3382,9 +3406,9 @@ sgs.Sanguosha:addSkills(skills)
 UNICORN:addRelateSkill("huimie")
 
 UNICORN_NTD = sgs.General(extension, "UNICORN_NTD", "EFSF", 4, true, true, true)
-UNICORN_NTD:addSkill("shenshou")
-UNICORN_NTD:addSkill("quanwu")
-UNICORN_NTD:addSkill("NTD")
+UNICORN_NTD:addSkill(shenshou)
+UNICORN_NTD:addSkill(quanwu)
+UNICORN_NTD:addSkill(NTD)
 UNICORN_NTD:addRelateSkill("huimie")
 
 FA_UNICORN = sgs.General(extension, "FA_UNICORN", "EFSF", 3, true, false)
@@ -3828,30 +3852,6 @@ extension:insertRelatedSkills("siyi", "#siyiadd")
 
 SINANJU = sgs.General(extension, "SINANJU", "SLEEVE", 4, true, false)
 
-xiaya = sgs.CreateViewAsSkill{
-	name = "xiaya",
-	n = 1,
-	response_or_use = true,
-	view_filter = function(self, selected, to_select)
-		return to_select:isRed()
-	end,
-	view_as = function(self, cards)
-		if #cards == 1 then
-			local card = cards[1]
-			local jink = sgs.Sanguosha:cloneCard("jink", card:getSuit(), card:getNumber())
-			jink:setSkillName(self:objectName())
-			jink:addSubcard(card:getId())
-			return jink
-		end
-	end,
-	enabled_at_play = function(self, player)
-		return false
-	end,
-	enabled_at_response = function(self, player, pattern)
-		return pattern == "jink"
-	end
-}
-
 --[[ 旧版：
 zaishi = sgs.CreateTriggerSkill{
 	name = "zaishi",
@@ -3907,21 +3907,36 @@ zaishi = sgs.CreateTriggerSkill{
 			move.to_place = sgs.Player_PlaceTable
 			move.reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_TURNOVER, player:objectName(), self:objectName(), nil)
 			room:moveCardsAtomic(move, true)
-			local red_card = sgs.Sanguosha:cloneCard("slash")
-			local black_card = sgs.Sanguosha:cloneCard("slash")
+			local red_ids = sgs.IntList()
+			local throw_card = sgs.Sanguosha:cloneCard("slash")
 			for _, id in sgs.qlist(ids) do
 				if sgs.Sanguosha:getCard(id):isRed() then
-					red_card:addSubcard(id)
+					red_ids:append(id)
 				else
-					black_card:addSubcard(id)
+					throw_card:addSubcard(id)
 				end
 			end
-			if red_card:subcardsLength() > 0 then
+			if not red_ids:isEmpty() then
 				room:broadcastSkillInvoke(self:objectName())
-				player:obtainCard(red_card)
+				if red_ids:length() == 1 then
+					local id = red_ids:first()
+					room:obtainCard(player, id)
+					red_ids:removeOne(id)
+				else
+					room:fillAG(red_ids)
+					local id = room:askForAG(player, red_ids, false, self:objectName())
+					if id ~= -1 then
+						room:obtainCard(player, id)
+						red_ids:removeOne(id)
+					end
+					room:clearAG()
+				end
 			end
-			if black_card:subcardsLength() > 0 then
-				room:throwCard(black_card, nil)
+			if not red_ids:isEmpty() then
+				throw_card:addSubcards(red_ids)
+			end
+			if throw_card:subcardsLength() > 0 then
+				room:throwCard(throw_card, nil)
 			end
 		end
     end
@@ -4479,8 +4494,8 @@ BANSHEE:addRelateSkill("baosang")
 extension:insertRelatedSkills("mengshi", "#mengshislash")
 
 BANSHEE_NTD = sgs.General(extension, "BANSHEE_NTD", "EFSF", 4, false, true, true)
-BANSHEE_NTD:addSkill("mengshi")
-BANSHEE_NTD:addSkill("ntdtwo")
+BANSHEE_NTD:addSkill(mengshi)
+BANSHEE_NTD:addSkill(NTD2)
 BANSHEE_NTD:addRelateSkill("baosang")
 
 --[[NORN = sgs.General(extension, "NORN", "EFSF", 4, true, dlc, dlc)
@@ -4941,8 +4956,8 @@ NORN:addRelateSkill("zuzhou")
 --extension:insertRelatedSkills("shenshi", "#shenshi_damage")
 
 NORN_NTD = sgs.General(extension, "NORN_NTD", "EFSF", 4, true, true, true)
-NORN_NTD:addSkill("shenshi")
-NORN_NTD:addSkill("ntdthree")
+NORN_NTD:addSkill(shenshi)
+NORN_NTD:addSkill(NTD3)
 NORN_NTD:addRelateSkill("zuzhou")
 
 PHENEX = sgs.General(extension, "PHENEX", "EFSF", 4, true, true, true)
@@ -6518,7 +6533,7 @@ ew_lingshi = sgs.CreateTriggerSkill{
 	end,
 }
 
-WZC:addSkill("feiyi")
+WZC:addSkill(feiyi)
 WZC:addSkill(shuangpao)
 WZC:addSkill(ew_lingshi)
 
@@ -8013,9 +8028,9 @@ extension:insertRelatedSkills("yinxian", "#yinxiand")
 
 BLITZ_Y = sgs.General(extension, "BLITZ_Y", "ZAFT", 4, true, true, true)--海市蜃楼特效
 
-BLITZ_Y:addSkill("yinxian")
-BLITZ_Y:addSkill("#yinxiand")
-BLITZ_Y:addSkill("zhuanjin")
+BLITZ_Y:addSkill(yinxian)
+BLITZ_Y:addSkill(yinxiand)
+BLITZ_Y:addSkill(zhuanjin)
 
 FREEDOM = sgs.General(extension, "FREEDOM", "ORB", 3, true, false)
 
@@ -8291,7 +8306,7 @@ huiwu = sgs.CreateTriggerSkill
 	end,
 }
 
-JUSTICE:addSkill("helie")
+JUSTICE:addSkill(helie)
 JUSTICE:addSkill(shouwang)
 JUSTICE:addSkill(zhongzij)
 local skills = sgs.SkillList()
@@ -8524,7 +8539,7 @@ chuangshi = sgs.CreateTriggerSkill
 	end
 }
 
-PROVIDENCE:addSkill("helie")
+PROVIDENCE:addSkill(helie)
 PROVIDENCE:addSkill(longqi)
 PROVIDENCE:addSkill(chuangshi)
 
@@ -9271,6 +9286,7 @@ bachivs = sgs.CreateOneCardViewAsSkill{
 	filter_pattern = ".!",
 	view_as = function(self, card)
 		local acard = bachicard:clone()
+		acard:setSkillName(self:objectName())
 		acard:addSubcard(card)
 		return acard
 	end
@@ -9278,45 +9294,56 @@ bachivs = sgs.CreateOneCardViewAsSkill{
 
 bachi = sgs.CreateTriggerSkill{
 	name = "bachi",
-	events = {sgs.TargetConfirming},
+	events = {sgs.TargetConfirming, sgs.PreCardUsed},
 	view_as_skill = bachivs,
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local use = data:toCardUse()
-		if use.card and (use.card:isKindOf("Slash") or use.card:isKindOf("Shoot")) and use.card:isRed() and use.to:contains(player) and player:canDiscard(player, "he") then
-			local players = room:getOtherPlayers(player)
-			local can_invoke = false
-			for _, p in sgs.qlist(players) do
-				if (not p:isProhibited(p, use.card)) then
-					can_invoke = true
-					break
+		if event == sgs.TargetConfirming then
+			if use.card and (use.card:isKindOf("Slash") or use.card:isKindOf("Shoot")) and use.card:isRed() and use.to:contains(player) and player:canDiscard(player, "he") then
+				local players = room:getOtherPlayers(player)
+				local can_invoke = false
+				for _, p in sgs.qlist(players) do
+					if (not p:isProhibited(p, use.card)) then
+						can_invoke = true
+						break
+					end
+				end
+				if can_invoke then
+					local prompt = "@bachi:" .. use.from:objectName() .. ":" .. use.card:objectName()
+					if room:askForUseCard(player, "@@bachi", prompt, -1, sgs.Card_MethodDiscard) then
+						local log1 = sgs.LogMessage()
+						log1.type = "$CancelTarget"
+						log1.from = use.from
+						log1.arg = use.card:objectName()
+						log1.to:append(player)
+						room:sendLog(log1)
+						use.to:removeOne(player)
+						for _,p in sgs.qlist(players) do
+							if p:hasFlag("bachi") then
+								p:setFlags("-bachi")
+								room:doAnimate(1, player:objectName(), p:objectName())
+								local log2 = sgs.LogMessage()
+								log2.type = "#BecomeTarget"
+								log2.from = p
+								log2.card_str = use.card:toString()
+								room:sendLog(log2)
+								use.to:append(p)
+							end
+						end
+						room:sortByActionOrder(use.to)
+						data:setValue(use)
+					end
 				end
 			end
-			if can_invoke then
-				local prompt = "@bachi:" .. use.from:objectName() .. ":" .. use.card:objectName()
-				if room:askForUseCard(player, "@@bachi", prompt, -1, sgs.Card_MethodDiscard) then
-					local log1 = sgs.LogMessage()
-					log1.type = "$CancelTarget"
-					log1.from = use.from
-					log1.arg = use.card:objectName()
-					log1.to:append(player)
-					room:sendLog(log1)
-					use.to:removeOne(player)
-					for _,p in sgs.qlist(players) do
-						if p:hasFlag("bachi") then
-							p:setFlags("-bachi")
-							room:doAnimate(1, player:objectName(), p:objectName())
-							local log2 = sgs.LogMessage()
-							log2.type = "#BecomeTarget"
-							log2.from = p
-							log2.card_str = use.card:toString()
-							room:sendLog(log2)
-							use.to:append(p)
-						end
-					end
-					room:sortByActionOrder(use.to)
-					data:setValue(use)
+		else
+			if use.card and use.card:getSkillName() == self:objectName() then
+				if player:getGeneralName() == "AKATSUKI" or player:getGeneral2Name() == "AKATSUKI" then
+					room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
+				else
+					room:broadcastSkillInvoke(self:objectName(), math.random(3, 4))
 				end
+				return true
 			end
 		end
 	end
@@ -9385,9 +9412,66 @@ hubi = sgs.CreateTriggerSkill{
 AKATSUKI:addSkill(bachi)
 AKATSUKI:addSkill(hubi)
 
-AKATSUKI_OOWASHI = sgs.General(extension, "AKATSUKI_OOWASHI", "ORB", 3, false, true)
+AKATSUKI_OOWASHI = sgs.General(extension, "AKATSUKI_OOWASHI", "ORB", 3, false, false)
+
+dajiu = sgs.CreateTriggerSkill{
+	name = "dajiu",
+	events = {sgs.Damaged, sgs.EventPhaseStart, sgs.CardUsed},
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		if event == sgs.Damaged then
+			local damage = data:toDamage()
+			for i = 1, damage.damage do
+				if not room:askForSkillInvoke(player, self:objectName(), data) then break end
+				room:broadcastSkillInvoke(self:objectName(), math.random(1, 2))
+				local id = room:getDrawPile():first()
+				room:drawCards(player, 1, self:objectName())
+				room:showCard(player, id)
+				local draw = sgs.Sanguosha:getCard(id)
+				if draw:isKindOf("BasicCard") then
+					if damage.from and not damage.from:isNude() then
+						local id_throw = room:askForCardChosen(player, damage.from, "he", self:objectName())
+						room:throwCard(id_throw, damage.from, player)
+					end
+				end
+			end
+		elseif event == sgs.EventPhaseStart then
+			if player:getPhase() == sgs.Player_Discard then
+				room:setPlayerFlag(player, "dajiu_slash")
+				room:askForUseCard(player, "slash", "@dajiu_slash")
+			end
+		else
+			local use = data:toCardUse()
+			if use.card and use.card:isKindOf("Slash") and player:hasFlag("dajiu_slash") then
+				room:broadcastSkillInvoke(self:objectName(), math.random(3, 4))
+			end
+		end
+	end
+}
+
+dajiured = sgs.CreateTargetModSkill{
+	name = "#dajiured",
+	pattern = "Slash|red",
+	extra_target_func = function(self, player, card)
+		if player and player:hasSkill("dajiu") and player:hasFlag("dajiu_slash") then
+			return 1
+		end
+	end
+}
+
+dajiudistance = sgs.CreateDistanceSkill{
+    name = "#dajiudistance",
+    correct_func = function(self, from, to)
+		if from:hasSkill("dajiu") then
+			return -1
+		end
+    end
+}
 
 AKATSUKI_OOWASHI:addSkill(bachi)
+AKATSUKI_OOWASHI:addSkill(dajiu)
+AKATSUKI_OOWASHI:addSkill(dajiured)
+AKATSUKI_OOWASHI:addSkill(dajiudistance)
 
 SF = sgs.General(extension, "SF", "ORB", 4, true, false)
 
@@ -11212,10 +11296,10 @@ REBORNS_TRANSAMmark = sgs.CreateTriggerSkill{
 REBORNS_CANNON:addSkill(jidong)
 REBORNS_CANNON:addSkill(fengong)
 REBORNS_CANNON:addSkill(REBORNS_TRANSAMmark)
-REBORNS_GUNDAM:addSkill("jidong")
+REBORNS_GUNDAM:addSkill(jidong)
 REBORNS_GUNDAM:addSkill(zaisheng)
 REBORNS_GUNDAM:addSkill(REBORNS_TRANSAM)
-REBORNS_GUNDAM:addSkill("#reborns_transammark")
+REBORNS_GUNDAM:addSkill(REBORNS_TRANSAMmark)
 
 HARUTE = sgs.General(extension, "HARUTE", "CB", 4, true, false)
 HARUTE:setGender(sgs.General_Neuter)
@@ -12537,7 +12621,7 @@ shengfengeffect = sgs.CreateTriggerSkill{
 	end
 }
 
-TRY_BURNING:addSkill("ciyuanbawangliu")
+TRY_BURNING:addSkill(ciyuanbawangliu)
 TRY_BURNING:addSkill(hongbao)
 local skills = sgs.SkillList()
 if not sgs.Sanguosha:getSkill("shengfeng") then skills:append(shengfeng) end
@@ -13654,8 +13738,13 @@ sgs.LoadTranslationTable{
 	["designer:CHAR_ZAKU"] = "高达杀制作组",
 	["cv:CHAR_ZAKU"] = "夏亚·阿兹纳布尔",
 	["illustrator:CHAR_ZAKU"] = "wch5621628",
+	["xiaya"] = "夏亚",
+	[":xiaya"] = "你可以将一张<font color='red'><b>红色</b></font>牌当【闪】使用或打出。",
 	["huixing"] = "彗星",
 	[":huixing"] = "摸牌阶段摸牌后，你可以亮出牌堆顶的一张牌，若为<font color='red'><b>红色</b></font>，你获得之；当你发动<b>“夏亚”</b>将<font color='red'><b>红色</b></font>【杀】当【闪】使用或打出后，你可以摸一张牌并视为对对方使用此【杀】。",
+	["$xiaya1"] = "当たらなければどうという事はない!",
+	["$xiaya2"] = "この程度では落とされんよ!",
+	["$xiaya3"] = "見事と言いたいところだが、まだ甘い",
 	["$huixing1"] = "戦いは非情さ。そのくらいのことは考えてある",
 	["$huixing2"] = "見せてもらおうか。連邦軍のMSの性能とやらを!",
 	["$huixing3"] = "コックピットを潰す!",
@@ -13797,17 +13886,12 @@ sgs.LoadTranslationTable{
 	["designer:SINANJU"] = "wch5621628 & Sankies & NOS7IM",
 	["cv:SINANJU"] = "弗尔·伏朗托",
 	["illustrator:SINANJU"] = "Sankies",
-	["xiaya"] = "夏亚",
-	[":xiaya"] = "你可以将一张<font color='red'><b>红色</b></font>牌当【闪】使用或打出。",
 	["zaishi"] = "再世",
 	-- 旧版：[":zaishi"] = "摸牌阶段摸牌时，你可以放弃摸牌，然后展示你的手牌，你重复摸牌，直到你拥有<font color='red'><b>三张红色</b></font>手牌，或以此法获得四张牌。",
-	[":zaishi"] = "摸牌阶段摸牌后，你可以亮出牌堆顶的两张牌，然后获得其中所有<font color='red'><b>红色</b></font>牌。",
+	[":zaishi"] = "摸牌阶段摸牌后，你可以亮出牌堆顶的两张牌，然后获得其中一张<font color='red'><b>红色</b></font>牌。",
 	["wangling"] = "亡灵",
 	[":wangling"] = "当你受到一次伤害时，你可以失去技能<b>“夏亚”</b>或<b>“再世”</b>并防止此伤害，然后视为你对伤害来源使用一张【杀】。",
 	["wanglingcard"] = "亡灵",
-	["$xiaya1"] = "当たらなければどうという事はない!",
-	["$xiaya2"] = "この程度では落とされんよ!",
-	["$xiaya3"] = "見事と言いたいところだが、まだ甘い",
 	["$zaishi1"] = "これは、ニュータイプを否定した人類への報いだ!",
 	["$zaishi2"] = "これが光を見た者の思いと知れ!",
 	["$wangling1"] = "これが、赤い彗星の再来とはな…",
@@ -14649,20 +14733,31 @@ sgs.LoadTranslationTable{
 	["@bachi"] = "%src 对你使用【%dest】，你可以弃置一张牌发动“八呎”",
 	["~bachi"] = "选择一张牌→指定一至两名其他角色→确定",
 	["hubi"] = "护壁",
-	-- 旧版：[":hubi"] = "出牌阶段限一次，你可以将一张【闪】置于一名角色的武将牌上，称为<b>“护壁”</b>，然后你摸一张牌，其可以将<b>“护壁”</b>使用或打出。准备阶段开始时，你回收<b>“护壁”</b>或将<b>“护壁”</b>当【万箭齐发】使用。",
-	[":hubi"] = "出牌阶段限一次，你可以将一张【闪】置于一名角色的武将牌上，称为<b>“护壁”</b>，然后你摸一张牌，其可以将<b>“护壁”</b>使用或打出。准备阶段开始时，你回收<b>“护壁”</b>。",
+	-- 旧版：[":hubi"] = "出牌阶段限一次，你可以将一张【闪】置于一名角色的武将牌上，称为<b>“护壁”</b>，然后你摸一张牌，其可以将<b>“护壁”</b>使用或打出。准备阶段开始时，你回收<b>“护壁”</b>。",
+	[":hubi"] = "出牌阶段限一次，你可以将一张【闪】置于一名角色的武将牌上，称为<b>“护壁”</b>，然后你摸一张牌，其可以将<b>“护壁”</b>使用或打出。准备阶段开始时，你回收<b>“护壁”</b>或将<b>“护壁”</b>当【万箭齐发】使用。",
 	["&hubi"] = "护壁",
 	["$bachi1"] = "买多买多!",
 	["$bachi2"] = "噢哩呀!",
 	["$hubi1"] = "我是化不可能为可能的男人。",
 	["$hubi2"] = "回来之前别被击沉唷!",
+	["hubi_recycle"] = "回收“护壁”",
+	["hubi_archery"] = "将“护壁”当【万箭齐发】使用",
 	
 	["AKATSUKI_OOWASHI"] = "晓 大鹫",
 	["#AKATSUKI_OOWASHI"] = "黄金的意志",
-	["~AKATSUKI_OOWASHI"] = "",
+	["~AKATSUKI_OOWASHI"] = "地球军的新型机动兵器……父亲你这个叛徒！",
 	["designer:AKATSUKI_OOWASHI"] = "wch5621628 & Sankies & NOS7IM",
 	["cv:AKATSUKI_OOWASHI"] = "卡嘉莲·由拉·阿斯哈",
 	["illustrator:AKATSUKI_OOWASHI"] = "wch5621628",
+	["dajiu"] = "大鹫",
+	[":dajiu"] = "当你受到1点伤害后，你可以摸一张牌并展示之，若为基本牌，你弃置伤害来源一张牌；弃牌阶段开始时，你可以使用一张【杀】，若为<b><font color='red'>红色</font></b>，你可额外指定一个目标；你与其他角色的距离-1。",
+	["@dajiu_slash"] = "你可以使用一张【杀】，若为<b><font color='red'>红色</font></b>，你可额外指定一个目标",
+	["$bachi3"] = "我也可以",
+	["$bachi4"] = "现在怎能再让你们为所欲为",
+	["$dajiu1"] = "可恶……你们！",
+	["$dajiu2"] = "不可以逃避！活下去也是一种战斗！",
+	["$dajiu3"] = "去吧！",
+	["$dajiu4"] = "大家正在拼死战斗",
 	
 	["SF"] = "突击自由",
 	["#SF"] = "黄金之翼",
