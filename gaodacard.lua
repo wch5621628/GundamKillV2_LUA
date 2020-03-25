@@ -1,7 +1,7 @@
 module("extensions.gaodacard", package.seeall)
 extension = sgs.Package("gaodacard", sgs.Package_CardPack)
 
-shoot = sgs.CreateBasicCard{--BUG:can't view as
+shoot = sgs.CreateBasicCard{
 	name = "shoot",
 	class_name = "Shoot",
 	subtype = "attack_card",
@@ -23,6 +23,8 @@ shoot = sgs.CreateBasicCard{--BUG:can't view as
 		self:cardOnUse(room, use)
 	end,
 	on_use = function(self, room, source, targets)
+		room:addPlayerHistory(source, "Shoot")
+		
 		local hit_targets, missed_targets = {}, sgs.SPlayerList()
 		math.random()
 		for _, t in ipairs(targets) do
@@ -53,14 +55,13 @@ shoot = sgs.CreateBasicCard{--BUG:can't view as
 		local source = effect.from
 		local target = effect.to
 		local room = source:getRoom()
-		--room:setEmotion(source, "killer")
-		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
-			local damage = sgs.DamageStruct()
-			damage.from = source
-			damage.to = target
-			damage.damage = 1
-			damage.card = self
-			room:damage(damage)
+		local data = sgs.QVariant()
+		data:setValue(effect)
+		local jink = room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
+		if jink and jink:getSkillName() ~= "eight_diagram" and jink:getSkillName() ~= "bazhen" then
+			room:setEmotion(target, "jink")
+		elseif not jink then
+			room:damage(sgs.DamageStruct(self, source:isAlive() and source or nil, target))
 		end
 	end
 }
@@ -80,7 +81,7 @@ end
 
 pierce_shoot = sgs.CreateBasicCard{
 	name = "pierce_shoot",
-	class_name = "Shoot",
+	class_name = "PierceShoot",
 	subtype = "attack_card",
 	target_fixed = false,
 	can_recast = false,
@@ -100,6 +101,8 @@ pierce_shoot = sgs.CreateBasicCard{
 		self:cardOnUse(room, use)
 	end,
 	on_use = function(self, room, source, targets)
+		room:addPlayerHistory(source, "Shoot")
+		
 		local hit_targets, missed_targets = {}, sgs.SPlayerList()
 		math.random()
 		for _, t in ipairs(targets) do
@@ -130,14 +133,13 @@ pierce_shoot = sgs.CreateBasicCard{
 		local source = effect.from
 		local target = effect.to
 		local room = source:getRoom()
-		--room:setEmotion(source, "killer")
-		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
-			local damage = sgs.DamageStruct()
-			damage.from = source
-			damage.to = target
-			damage.damage = 1
-			damage.card = self
-			room:damage(damage)
+		local data = sgs.QVariant()
+		data:setValue(effect)
+		local jink = room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
+		if jink and jink:getSkillName() ~= "eight_diagram" and jink:getSkillName() ~= "bazhen" then
+			room:setEmotion(target, "jink")
+		elseif not jink then
+			room:damage(sgs.DamageStruct(self, source:isAlive() and source or nil, target))
 		end
 	end
 }
@@ -153,7 +155,7 @@ pierce_shoot:clone(3, 6):setParent(extension)
 
 spread_shoot = sgs.CreateBasicCard{
 	name = "spread_shoot",
-	class_name = "Shoot",
+	class_name = "SpreadShoot",
 	subtype = "attack_card",
 	target_fixed = false,
 	can_recast = false,
@@ -173,6 +175,8 @@ spread_shoot = sgs.CreateBasicCard{
 		self:cardOnUse(room, use)
 	end,
 	on_use = function(self, room, source, targets)
+		room:addPlayerHistory(source, "Shoot")
+		
 		local hit_targets, missed_targets = {}, sgs.SPlayerList()
 		math.random()
 		for _, t in ipairs(targets) do
@@ -204,14 +208,13 @@ spread_shoot = sgs.CreateBasicCard{
 		local source = effect.from
 		local target = effect.to
 		local room = source:getRoom()
-		--room:setEmotion(source, "killer")
-		if not room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), sgs.QVariant(), sgs.Card_MethodResponse, source) then
-			local damage = sgs.DamageStruct()
-			damage.from = source
-			damage.to = target
-			damage.damage = 1
-			damage.card = self
-			room:damage(damage)
+		local data = sgs.QVariant()
+		data:setValue(effect)
+		local jink = room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
+		if jink and jink:getSkillName() ~= "eight_diagram" and jink:getSkillName() ~= "bazhen" then
+			room:setEmotion(target, "jink")
+		elseif not jink then
+			room:damage(sgs.DamageStruct(self, source:isAlive() and source or nil, target))
 		end
 	end
 }
@@ -250,7 +253,7 @@ Guard:clone(1, 13):setParent(extension)
 
 counter_guard = sgs.CreateBasicCard{
 	name = "counter_guard",
-	class_name = "Guard",
+	class_name = "CounterGuard",
 	subtype = "defense_card",
 	target_fixed = true,
 	can_recast = false,
@@ -270,10 +273,37 @@ Guard_skill = sgs.CreateTriggerSkill{
 	global = true,
 	priority = -1,
 	can_trigger = function(self, target)
-		if target:getMark("luaqiangwub") > 0 then return false end --强武另行处理
-		for _,card in sgs.qlist(target:getHandcards()) do
-			if card:isKindOf("Guard") then
-				return target and target:isAlive()
+		if target and target:isAlive() then
+			--强武可触发
+			if target:hasSkill("luaqiangwu") and target:getMark("luaqiangwub") > 0 then
+				return true
+			end
+			
+			--骷颅可触发
+			if target:getTag("Guard"):toCard() then
+				return true
+			end
+			
+			for _,card in sgs.qlist(target:getHandcards()) do
+				if card:getClassName():endsWith("Guard") then
+					return true
+				end
+			end
+			
+			for _,id in sgs.qlist(target:getHandPile()) do
+				local card = sgs.Sanguosha:getCard(id)
+				if card:getClassName():endsWith("Guard") then
+					return true
+				end
+			end
+			
+			--融合
+			local list = target:property("ronghe"):toString():split("+")
+			for _,l in pairs(list) do
+				local card = sgs.Sanguosha:getCard(tonumber(l))
+				if card:getClassName():endsWith("Guard") then
+					return true
+				end
 			end
 		end
 		return false
@@ -281,20 +311,20 @@ Guard_skill = sgs.CreateTriggerSkill{
 	on_trigger = function(self, event, player, data)
 		local room = player:getRoom()
 		local damage = data:toDamage()
-		if damage.card and (damage.card:isKindOf("Slash") or string.find(damage.card:objectName(), "shoot") and damage.card:objectName() ~= "pierce_shoot") then
+		if damage.card and (damage.card:isKindOf("Slash") or damage.card:objectName():endsWith("shoot") and damage.card:objectName() ~= "pierce_shoot") then
 			
-			--已挡
-			if damage.card:hasFlag("Guard") then return false end
-			
-			local guard
-			if damage.from then
-				guard = room:askForCard(player, "Guard", "@Guard:"..damage.card:objectName()..":"..damage.from:objectName(), sgs.QVariant(), sgs.Card_MethodUse, damage.from)
-			else
-				guard = room:askForCard(player, "Guard", "@@Guard:"..damage.card:objectName(), sgs.QVariant(), sgs.Card_MethodUse, nil)
+			--骷颅
+			local pro_guard = player:getTag("Guard"):toCard()
+			if pro_guard then
+				player:removeTag("Guard")
 			end
-			if guard then
+			
+			local prompt = "@Guard:" .. damage.card:objectName() .. (damage.from and ":" .. damage.from:objectName() or "")
+			local guard = room:askForCard(player, "Guard,CounterGuard", prompt, data, sgs.Card_MethodUse, damage.from)
+			
+			if guard then				
 				math.random()
-				if (string.find(damage.card:objectName(), "shoot") or math.random(1, 100) <= 70) then
+				if (damage.card:objectName():endsWith("shoot") or math.random(1, 100) <= 70) then
 					local log = sgs.LogMessage()
 					log.type = "#burstd"
 					log.to:append(damage.to)
@@ -501,6 +531,7 @@ sgs.LoadTranslationTable{
 	["#use_shoot"] = "%from 使用了【%arg】，目标是 %to",
 	
 	["pierce_shoot"] = "贯穿射击",
+	["PierceShoot"] = "贯穿射击",
 	[":pierce_shoot"] = "基本牌\
 	<b>时机</b>：出牌阶段限一次\
 	<b>目标</b>：一名其他角色\
@@ -508,6 +539,7 @@ sgs.LoadTranslationTable{
 	<b>效果</b>：被命中的目标角色须打出一张【闪】，否则对其造成1点伤害，<b><font color='orange'>不可被【挡】响应</font></b>。",
 	
 	["spread_shoot"] = "扩散射击",
+	["SpreadShoot"] = "扩散射击",
 	[":spread_shoot"] = "基本牌\
 	<b>时机</b>：出牌阶段限一次\
 	<b>目标</b>：<b><font color='#00cc66'>一至两名其他角色</font></b>\
@@ -520,11 +552,12 @@ sgs.LoadTranslationTable{
 	<b>目标</b>：此【杀】/【射击】造成的伤害\
 	<b>格挡率</b>：【杀】：70%，【射击】：100%\
 	<b>效果</b>：被格挡的【杀】/【射击】对你造成的伤害-1。",
-	["@Guard"] = "%dest 令你受到【%src】的伤害，请使用一张【档】",
-	["@@Guard"] = "你受到【%src】造成的伤害，请使用一张【档】",
+	["@Guard"] = "%dest 令你受到【%src】的伤害，请使用一张【挡】",
+	--["@@Guard"] = "你受到【%src】造成的伤害，请使用一张【挡】",
 	["#Guard_failed"] = "%from 使用的 %card 格挡失败",
 	
 	["counter_guard"] = "反击挡",
+	["CounterGuard"] = "反击挡",
 	[":counter_guard"] = "基本牌\
 	<b>时机</b>：受到【杀】/【射击】的伤害时\
 	<b>目标</b>：此【杀】/【射击】造成的伤害\
