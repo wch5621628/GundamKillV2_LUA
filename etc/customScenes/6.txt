@@ -1,3 +1,5 @@
-general:select role:rebel hp:2 draw:2 starter:true
-general:zhanghe hp:2  draw:2 role:rebel
-general:shenzhaoyun general2:luxun maxhp:3 hp:1 role:lord equip:silver_lion,qinggang_sword,dayuan,hualiu
+general:UNICORN role:rebel equip:59,63
+general:DELTA_PLUS role:rebel 
+general:BYARLANT_C role:rebel 
+general:JESTA role:rebel equip:64
+general:SHAMBLO role:lord starter:true equip:62 
