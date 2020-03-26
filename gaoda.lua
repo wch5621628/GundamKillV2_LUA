@@ -858,7 +858,6 @@ saveRecord = function(player, record_type) --record_type: 0. +1 gameplay , 1. +1
 	writeData(t)
 end
 
---[[
 gdsrecordcard = sgs.CreateSkillCard{
 	name = "gdsrecord",
 	target_fixed = true,
@@ -879,20 +878,6 @@ gdsrecordvs = sgs.CreateZeroCardViewAsSkill{
 		return gdsrecordcard:clone()
 	end
 }
-]]
-
-gdsrecordm = sgs.CreateMaxCardsSkill{
-	name = "#gdsrecordm",
-	extra_func = function(self, player)
-		if player and player:hasSkill(self:objectName()) then
-			if not player:hasFlag("gdata_saved") then
-				player:setFlags("gdata_saved")
-				saveRecord(player, player:getMark("record_type"))
-			end
-		end
-		return 0
-	end
-}
 
 gdsrecord = sgs.CreateTriggerSkill{
 --[[Rule: 1. single mode +1 gameplay when game STARTED & +1 win (if win) when game FINISHED;
@@ -910,7 +895,7 @@ gdsrecord = sgs.CreateTriggerSkill{
 	name = "gdsrecord",
 	events = {sgs.DrawInitialCards, sgs.GameOverJudge},
 	global = true,
-	--view_as_skill = gdsrecordvs,
+	view_as_skill = gdsrecordvs,
 	priority = 0,
 	can_trigger = function(self, player)
 		return dlc == true
@@ -952,14 +937,11 @@ gdsrecord = sgs.CreateTriggerSkill{
 							if string.find(winner, p:getRole()) or string.find(winner, p:objectName()) then
 								room:setPlayerMark(p, "record_type", 2)
 							end
-							--room:askForUseCard(p, "@@gdsrecord!", "@gdsrecord")
-							
-							room:acquireSkill(p, "#gdsrecordm", false)
-							p:getMaxCards() -- 强制让客户端执行MaxCardsSkill里的extra_func进行存档
-							room:detachSkillFromPlayer(p, "#gdsrecordm", true, true)
-							
+							if p:getState() == "trust" then
+								room:setPlayerProperty(p, "state", sgs.QVariant("online"))
+							end
+							room:askForUseCard(p, "@@gdsrecord!", "@gdsrecord")
 							room:setPlayerFlag(p, "-gdata_saved")
-							--room:setPlayerProperty(p, "state", sgs.QVariant("online"))
 							room:setPlayerMark(p, "record_type", 0)
 						end
 					end
@@ -1987,7 +1969,6 @@ saveItem = function(item_type, item_name, add_num)
 	return repeated
 end
 
---[[
 luckyrecordcard = sgs.CreateSkillCard{
 	name = "luckyrecord",
 	target_fixed = true,
@@ -2003,27 +1984,15 @@ luckyrecordvs = sgs.CreateZeroCardViewAsSkill{
 	view_as = function(self)
 		if not sgs.Self:hasFlag("g2data_saved") then
 			sgs.Self:setFlags("g2data_saved")
-			local n = math.max(sgs.Self:getMark("add_coin"), 1)
-			saveItem("Item", "Coin", n)
-		end
-		return luckyrecordcard:clone()
-	end
-}
-]]
-
-luckyrecordm = sgs.CreateMaxCardsSkill{
-	name = "#luckyrecordm",
-	extra_func = function(self, player)
-		if player and player:hasSkill(self:objectName()) then
-			if not player:hasFlag("g2data_saved") then
-				player:setFlags("g2data_saved")
-				local item = player:property("lucky_item"):toString()
-				if item == "" then item = "Coin" end
-				local n = math.max(player:getMark("lucky_item_n"), 1)
+			local items = sgs.Self:property("luckyrecord"):toString():split("+")
+			for _, it in ipairs(items) do
+				local pair = it:split(":")
+				local item = pair[1]
+				local n = pair[2]
 				saveItem("Item", item, n)
 			end
 		end
-		return 0
+		return luckyrecordcard:clone()
 	end
 }
 
@@ -2083,13 +2052,13 @@ luckyrecord = sgs.CreateTriggerSkill{
 						saveItem("Item", "Coin", 1)
 					else
 						if (player:getState() == "online" or player:getState() == "trust") then
-							--room:askForUseCard(player, "@@luckyrecord!", "@luckyrecord")
-							
-							room:acquireSkill(player, "#luckyrecordm", false)
-							player:getMaxCards() -- 强制让客户端执行MaxCardsSkill里的extra_func进行存档
-							room:detachSkillFromPlayer(player, "#luckyrecordm", true, true)
-							
+							room:setPlayerProperty(player, "luckyrecord", sgs.QVariant("Coin:1"))
+							if player:getState() == "trust" then
+								room:setPlayerProperty(player, "state", sgs.QVariant("online"))
+							end
+							room:askForUseCard(player, "@@luckyrecord!", "@luckyrecord")							
 							room:setPlayerFlag(player, "-g2data_saved")
+							room:setPlayerProperty(player, "luckyrecord", sgs.QVariant())
 						end
 					end
 				end
@@ -2415,8 +2384,6 @@ if not sgs.Sanguosha:getSkill("gdsbgm") then skills:append(gdsbgm) end
 if not sgs.Sanguosha:getSkill("#equipprohibit") then skills:append(equipprohibit) end
 if not sgs.Sanguosha:getSkill("equipwo") then skills:append(equipwo) end
 if not sgs.Sanguosha:getSkill("gdsrecord") then skills:append(gdsrecord) end
-if not sgs.Sanguosha:getSkill("#gdsrecordm") then skills:append(gdsrecordm) end
-if not sgs.Sanguosha:getSkill("#luckyrecordm") then skills:append(luckyrecordm) end
 if not sgs.Sanguosha:getSkill("map") then skills:append(map) end
 if not sgs.Sanguosha:getSkill("maprecord") then skills:append(maprecord) end
 if not sgs.Sanguosha:getSkill("bursta") then skills:append(bursta) end
@@ -15532,10 +15499,10 @@ sgs.LoadTranslationTable{
 	["maxiu"] = "玛修",
 	["#RemoveEquipArea"] = "%from 失去了%arg区",
 	["#CardViewAs"] = "%from 的 %card 视为【%arg】",
-	--["@gdsrecord"] = "请点击“确定”存档",
-	--["~gdsrecord"] = "确定：存档",
-	--["@luckyrecord"] = "请点击“确定”获得G币",
-	--["~luckyrecord"] = "确定：获得",
+	["@gdsrecord"] = "请点击“确定”存档",
+	["~gdsrecord"] = "确定：存档",
+	["@luckyrecord"] = "请点击“确定”获得道具",
+	["~luckyrecord"] = "确定：获得",
 	["map"] = "M炮",
 	[":map"] = "<font color='red'><b>地图炮，</b></font>出牌阶段，对敌方发动大型攻击！（无伤害来源）<br><b>镭射炮(其他系列)</b>：令<b>任意多名</b>其他角色各受到2点雷电伤害。<br><b>创世纪(SEED系列)</b>：令<b>任意多名</b>其他角色各失去2点体力。<br><b>GN粒子炮(00系列)</b>：令<b>任意多名</b>其他角色各受到2点火焰伤害。",
 	["#map"] = "%from 发动了 <font color='red'><b>地图炮</b></font>：%arg",

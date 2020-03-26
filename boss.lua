@@ -1,72 +1,53 @@
 module("extensions.boss", package.seeall)
 extension = sgs.Package("boss", sgs.Package_GeneralPack)
 
---获得G币
-gainCoin = function(player, n)
-	if n < 1 then return false end
-
+--获得道具
+gainItems = function(player, item_list)
 	local room = player:getRoom()
 	
-	local json = require("json")
-	local jsonValue = {
-	player:objectName(),
-	"yomeng"
-	}
-	local wholist = sgs.SPlayerList()
-	wholist:append(player)
-	room:doBroadcastNotify(wholist, sgs.CommandType.S_COMMAND_SET_EMOTION, json.encode(jsonValue))
-
-	local log = sgs.LogMessage()
-	log.type = "#coin"
-	log.from = player
-	log.arg = n
-	room:sendLog(log)
-	if n == 1 then
-		room:broadcastSkillInvoke("gdsbgm", 7)
-	else
-		room:broadcastSkillInvoke("gdsbgm", 8)
+	local items = item_list:split("+")
+	for _, it in ipairs(items) do
+		local pair = it:split(":")
+		local item = pair[1]
+		local n = pair[2]
+		if item == "Coin" then
+			local json = require("json")
+			local jsonValue = {
+			player:objectName(),
+			"yomeng"
+			}
+			local wholist = sgs.SPlayerList()
+			wholist:append(player)
+			room:doBroadcastNotify(wholist, sgs.CommandType.S_COMMAND_SET_EMOTION, json.encode(jsonValue))
+			
+			local log = sgs.LogMessage()
+			log.type = "#coin"
+			log.from = player
+			log.arg = n
+			room:sendLog(log)
+			if n == 1 then
+				room:broadcastSkillInvoke("gdsbgm", 7)
+			else
+				room:broadcastSkillInvoke("gdsbgm", 8)
+			end
+		else
+			local log = sgs.LogMessage()
+			log.type = "#" .. item
+			log.from = player
+			log.arg = n
+			log.arg2 = item
+			room:sendLog(log)
+		end
 	end
 	
-	local ip = room:getOwner():getIp()
 	if (player:getState() == "online" or player:getState() == "trust") then
-		room:setPlayerMark(player, "lucky_item_n", n)
-		--room:askForUseCard(player, "@@luckyrecord!", "@luckyrecord")
-		
-		room:acquireSkill(player, "#luckyrecordm", false)
-		player:getMaxCards() -- 强制让客户端执行MaxCardsSkill里的extra_func进行存档
-		room:detachSkillFromPlayer(player, "#luckyrecordm", true, true)
-		
-		room:setPlayerMark(player, "lucky_item_n", 0)
+		room:setPlayerProperty(player, "luckyrecord", sgs.QVariant(item_list))
+		if player:getState() == "trust" then
+			room:setPlayerProperty(player, "state", sgs.QVariant("online"))
+		end
+		room:askForUseCard(player, "@@luckyrecord!", "@luckyrecord")
 		room:setPlayerFlag(player, "-g2data_saved")
-	end
-end
-
---获得特殊道具
-gainSPItem = function(player, item, n)
-	if not n then n = 1 end
-	if n < 1 then return false end
-
-	local room = player:getRoom()
-	
-	local log = sgs.LogMessage()
-	log.type = "#" .. item
-	log.from = player
-	log.arg = n
-	log.arg2 = item
-	room:sendLog(log)
-	
-	local ip = room:getOwner():getIp()
-	if (player:getState() == "online" or player:getState() == "trust") then
-		room:setPlayerProperty(player, "lucky_item", sgs.QVariant(item))
-		room:setPlayerMark(player, "lucky_item_n", n)
-		
-		room:acquireSkill(player, "#luckyrecordm", false)
-		player:getMaxCards() -- 强制让客户端执行MaxCardsSkill里的extra_func进行存档
-		room:detachSkillFromPlayer(player, "#luckyrecordm", true, true)
-		
-		room:setPlayerProperty(player, "lucky_item", sgs.QVariant())
-		room:setPlayerMark(player, "lucky_item_n", 0)
-		room:setPlayerFlag(player, "-g2data_saved")
+		room:setPlayerProperty(player, "luckyrecord", sgs.QVariant())
 	end
 end
 
@@ -256,7 +237,7 @@ _mini_2_skill = sgs.CreateTriggerSkill{
 		local room = player:getRoom()
 		for _,p in sgs.qlist(room:getAllPlayers(true)) do
 			if p:objectName() ~= player:objectName() then
-				gainCoin(p, 10)
+				gainItems(p, "Coin:10")
 			end
 		end
 	end
@@ -285,7 +266,7 @@ _mini_3_skill = sgs.CreateTriggerSkill{
 				else
 					for _,p in sgs.qlist(room:getAllPlayers(true)) do
 						if p:objectName() ~= player:objectName() then
-							gainCoin(p, 10)
+							gainItems(p, "Coin:10")
 						end
 					end
 				end
@@ -386,7 +367,7 @@ _mini_4_skill = sgs.CreateTriggerSkill{
 			elseif player:getKingdom() == "ZAFT" and room:getLieges("ZAFT", player):isEmpty() then
 				for _,p in sgs.qlist(room:getAllPlayers(true)) do
 					if p:getKingdom() == "ORB" then
-						gainCoin(p, 10)
+						gainItems(p, "Coin:10")
 					end
 				end
 			end
@@ -459,7 +440,7 @@ _mini_5_skill = sgs.CreateTriggerSkill{
 		else
 			for _,p in sgs.qlist(room:getAllPlayers(true)) do
 				if p:objectName() ~= player:objectName() then
-					gainCoin(p, 10 + p:getMark("@wrath"))
+					gainItems(p, "Coin:" .. (10 + p:getMark("@wrath")))
 				end
 			end
 		end
@@ -494,8 +475,7 @@ _mini_6_skill = sgs.CreateTriggerSkill{
 				room:getThread():delay(1500)
 				for _,p in sgs.qlist(room:getAllPlayers(true)) do
 					if p:objectName() ~= player:objectName() then
-						gainCoin(p, 15)
-						gainSPItem(p, "bird_pendant")
+						gainItems(p, "Coin:15+bird_pendant:1")
 					end
 				end
 			end
