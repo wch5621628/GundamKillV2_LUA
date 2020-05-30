@@ -1479,19 +1479,19 @@ function sgs.ai_cardneed.anzhang(to, card)
 end
 
 --拜亚兰改
-sgs.ai_skill_use["@@lunwu"] = function(self, prompt)
+sgs.ai_skill_use["@@zhenya"] = function(self, prompt)
 	self:updatePlayers()
 	self:sort(self.enemies, "handcard")
 	if self.player:getHandcardNum() <= 1 or self.player:getHp() <= 1 then return "." end
 	if (self.player:containsTrick("indulgence") or self.player:containsTrick("supply_shortage")) and self:getCardsNum("Nullification") == 0 then return "." end
 	if #self.enemies > 1 then
-		return ("#lunwu:.:->%s+%s"):format(self.enemies[1]:objectName(), self.enemies[2]:objectName())
+		return ("#zhenya:.:->%s+%s"):format(self.enemies[1]:objectName(), self.enemies[2]:objectName())
 	elseif #self.enemies == 1 and #self.friends_noself > 0 then
 		for _, friend in ipairs(self.friends_noself) do
 			local card = sgs.Sanguosha:cloneCard("dismantlement")
 			if self:hasTrickEffective(card, friend, self.player) then
 				if friend:containsTrick("indulgence") or friend:containsTrick("supply_shortage") then
-					return ("#lunwu:.:->%s+%s"):format(self.enemies[1]:objectName(), friend:objectName())
+					return ("#zhenya:.:->%s+%s"):format(self.enemies[1]:objectName(), friend:objectName())
 				end
 			end
 		end
@@ -1499,7 +1499,7 @@ sgs.ai_skill_use["@@lunwu"] = function(self, prompt)
 	return "."
 end
 
-sgs.ai_skill_invoke.lunwu = function(self, data)
+sgs.ai_skill_invoke.zhenya = function(self, data)
 	local prompt = data:toString():split(":")
 	local target = findPlayerByObjectName(self.room, prompt[2])
 	if self:isFriend(target) then
@@ -1522,7 +1522,7 @@ sgs.ai_skill_invoke.lunwu = function(self, data)
 	return false
 end
 
-sgs.ai_skill_choice.lunwu = function(self, choices, data)
+sgs.ai_skill_choice.zhenya = function(self, choices, data)
 	choices = choices:split("+")
 	local target = data:toPlayer()
 	for _, choice in ipairs(choices) do
