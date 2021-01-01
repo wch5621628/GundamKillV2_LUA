@@ -125,6 +125,30 @@ sgs.ai_skill_cardask["@Guard"] = function(self, data, pattern)
 		end
 	end
 	
+	--亮剑
+	if self.player:hasSkill("liangjian") then
+		local can_invoke = true
+		for _, p in sgs.qlist(self.player:getAliveSiblings()) do
+			if not self.player:inMyAttackRange(p) then
+				can_invoke = false
+				break
+			end
+		end
+		if can_invoke then
+			local cards = self.player:getCards("h")
+			cards = sgs.QList2Table(cards)
+			self:sortByKeepValue(cards)
+			for _, card in ipairs (cards) do
+				if (card:getNumber() == 1 or card:getNumber() == 7 or card:getNumber() == 13)  then
+					local suit = card:getSuitString()
+					local number = card:getNumberString()
+					local card_id = card:getEffectiveId()
+					return ("counter_guard:liangjian[%s:%s]=%d"):format(suit, number, card_id)
+				end
+			end
+		end
+	end
+	
 	for _,id in sgs.qlist(self.player:getHandPile()) do
 		local card = sgs.Sanguosha:getCard(id)
 		if card:getClassName():endsWith("Guard") then

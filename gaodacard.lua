@@ -284,6 +284,31 @@ Guard_skill = sgs.CreateTriggerSkill{
 				return true
 			end
 			
+			--亮剑可触发
+			if target:hasSkill("liangjian") then
+				local can_invoke = true
+				for _, p in sgs.qlist(target:getAliveSiblings()) do
+					if not target:inMyAttackRange(p) then
+						can_invoke = false
+						break
+					end
+				end
+				if can_invoke then
+					for _,card in sgs.qlist(target:getHandcards()) do
+						if card:getClassName():endsWith("Guard") or (card:getNumber() == 1 or card:getNumber() == 7 or card:getNumber() == 13) then
+							return true
+						end
+					end
+					
+					for _,id in sgs.qlist(target:getHandPile()) do
+						local card = sgs.Sanguosha:getCard(id)
+						if card:getClassName():endsWith("Guard") or (card:getNumber() == 1 or card:getNumber() == 7 or card:getNumber() == 13) then
+							return true
+						end
+					end
+				end
+			end
+			
 			for _,card in sgs.qlist(target:getHandcards()) do
 				if card:getClassName():endsWith("Guard") then
 					return true
