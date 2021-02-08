@@ -40,32 +40,7 @@ sgs.ai_keep_value.Shoot = sgs.ai_keep_value.Slash
 sgs.ai_use_priority.Shoot = sgs.ai_use_priority.Slash + 0.1
 
 function SmartAI:useCardPierceShoot(card, use)
-	if #self.enemies == 0 then return false end
-	if self.player:usedTimes("Shoot") >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, self.player, card) then return false end
-	use.card = card
-	if use.to then
-		local f = function(a, b)
-			if self.player:inMyAttackRange(a) == self.player:inMyAttackRange(b) then
-				return sgs.getDefenseSlash(a, self) < sgs.getDefenseSlash(b, self)
-			else
-				return self.player:inMyAttackRange(a)
-			end
-		end
-		table.sort(self.enemies, f)
-		local tar = 1
-		if card:objectName() == "spread_shoot" then
-			tar = 2
-		end
-		for _,enemy in ipairs(self.enemies) do
-			if enemy:getMark("@duilieB") > 0 and math.mod(card:getNumber(), 2) == 0 and card:getNumber() > 0 then continue end
-			use.to:append(enemy)
-			if use.to:length() >= tar + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, card) then return end
-		end
-		--如果没有有效目标，则不空发射击
-		if use.to:isEmpty() then
-			use.card = nil
-		end
-	end
+	self:useCardShoot(card, use)
 end
 
 sgs.ai_use_value.PierceShoot = sgs.ai_use_value.Slash + 0.1
@@ -73,37 +48,26 @@ sgs.ai_keep_value.PierceShoot = sgs.ai_keep_value.Slash + 0.1
 sgs.ai_use_priority.PierceShoot = sgs.ai_use_priority.Slash + 0.1
 
 function SmartAI:useCardSpreadShoot(card, use)
-	if #self.enemies == 0 then return false end
-	if self.player:usedTimes("Shoot") >= 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, self.player, card) then return false end
-	use.card = card
-	if use.to then
-		local f = function(a, b)
-			if self.player:inMyAttackRange(a) == self.player:inMyAttackRange(b) then
-				return sgs.getDefenseSlash(a, self) < sgs.getDefenseSlash(b, self)
-			else
-				return self.player:inMyAttackRange(a)
-			end
-		end
-		table.sort(self.enemies, f)
-		local tar = 1
-		if card:objectName() == "spread_shoot" then
-			tar = 2
-		end
-		for _,enemy in ipairs(self.enemies) do
-			if enemy:getMark("@duilieB") > 0 and math.mod(card:getNumber(), 2) == 0 and card:getNumber() > 0 then continue end
-			use.to:append(enemy)
-			if use.to:length() >= tar + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_ExtraTarget, self.player, card) then return end
-		end
-		--如果没有有效目标，则不空发射击
-		if use.to:isEmpty() then
-			use.card = nil
-		end
-	end
+	self:useCardShoot(card, use)
 end
 
 sgs.ai_use_value.SpreadShoot = sgs.ai_use_value.Slash + 0.1
 sgs.ai_keep_value.SpreadShoot = sgs.ai_keep_value.Slash + 0.1
 sgs.ai_use_priority.SpreadShoot = sgs.ai_use_priority.Slash + 0.1
+
+sgs.ai_skill_cardask["shoot-jink"] = sgs.ai_skill_cardask["archery-attack-jink"]
+
+sgs.ai_skill_cardask["@multi-shoot-jink-start"] = function(self, data, pattern, target, target2, arg)
+	local rest_num = tonumber(arg)
+	if rest_num == 1 then return sgs.ai_skill_cardask["shoot-jink"](self, data, pattern, target) end
+	if sgs.ai_skill_cardask.nullfilter(self, data, pattern, target) then return "." end
+	
+	if sgs.ai_skill_cardask["shoot-jink"](self, data, pattern, target) == "." then return "." end
+	
+	if self:getCardsNum("Jink") < rest_num and self:hasLoseHandcardEffective() then return "." end
+end
+
+sgs.ai_skill_cardask["@multi-shoot-jink"] = sgs.ai_skill_cardask["@multi-shoot-jink-start"]
 
 sgs.ai_skill_cardask["@Guard"] = function(self, data, pattern)
 	--强武
@@ -122,6 +86,18 @@ sgs.ai_skill_cardask["@Guard"] = function(self, data, pattern)
 				end
 				return ("%s:luaqiangwu[%s:%s]=%d"):format(name, suit, number, card_id)
 			end
+		end
+	end
+	
+	--覆盾
+	if self.player:hasSkill("fudun") then
+		local card = self.player:getOffensiveHorse() or self.player:getDefensiveHorse()
+		if card then
+			card = card:getRealCard()
+			local suit = card:getSuitString()
+			local number = card:getNumberString()
+			local card_id = card:getEffectiveId()
+			return ("Guard:fuduncard[%s:%s]=%d"):format(suit, number, card_id)
 		end
 	end
 	
@@ -170,7 +146,7 @@ sgs.ai_skill_cardask["@Guard"] = function(self, data, pattern)
 end
 
 sgs.ai_use_value.Guard = sgs.ai_use_value.Jink
-sgs.ai_keep_value.Guard = sgs.ai_keep_value.Jink
+sgs.ai_keep_value.Guard = sgs.ai_keep_value.Jink - 0.05
 
 sgs.ai_use_value.CounterGuard = sgs.ai_use_value.Jink + 0.1
 sgs.ai_keep_value.CounterGuard = sgs.ai_keep_value.Jink + 0.1

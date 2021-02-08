@@ -22,9 +22,9 @@ final_vent = sgs.CreateTrickCard{
 	is_cancelable = function(self, effect)
 		return true
 	end,
-	about_to_use = function(self, room, use)
+	--[[about_to_use = function(self, room, use)
 		self:cardOnUse(room, use)
-	end,
+	end,]]
 	on_use = function(self, room, source, targets)
 		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
 			--移动至隐藏pile，在UI层面上移出游戏，同时防止中途获得此牌（如 “奸雄”）
@@ -41,8 +41,16 @@ final_vent = sgs.CreateTrickCard{
 		end
 		
 		room:getThread():delay(1000)
+		
+		local nullified_list = room:getTag("CardUseNullifiedList"):toStringList()
+		local all_nullified = table.contains(nullified_list, "_ALL_TARGETS")
 		for _, t in ipairs(targets) do
-			room:cardEffect(self, source, t)
+			local effect = sgs.CardEffectStruct()
+			effect.card = self
+			effect.from = source
+			effect.to = t
+			effect.nullified = (all_nullified or table.contains(nullified_list, t:objectName()))
+			room:cardEffect(effect)
 		end
 	end,
 	on_effect = function(self, effect)
@@ -81,9 +89,9 @@ decade = sgs.CreateTrickCard{
 	is_cancelable = function(self, effect)
 		return true
 	end,
-	about_to_use = function(self, room, use)
+	--[[about_to_use = function(self, room, use)
 		self:cardOnUse(room, use)
-	end,
+	end,]]
 	on_use = function(self, room, source, targets)
 		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
 			--移动至隐藏pile，在UI层面上移出游戏，同时防止中途获得此牌（如 “奸雄”）
@@ -100,8 +108,16 @@ decade = sgs.CreateTrickCard{
 		end
 		
 		room:getThread():delay(1700)
+		
+		local nullified_list = room:getTag("CardUseNullifiedList"):toStringList()
+		local all_nullified = table.contains(nullified_list, "_ALL_TARGETS")
 		for _, t in ipairs(targets) do
-			room:cardEffect(self, source, t)
+			local effect = sgs.CardEffectStruct()
+			effect.card = self
+			effect.from = source
+			effect.to = t
+			effect.nullified = (all_nullified or table.contains(nullified_list, t:objectName()))
+			room:cardEffect(effect)
 		end
 	end,
 	on_effect = function(self, effect)

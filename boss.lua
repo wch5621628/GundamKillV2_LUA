@@ -2,6 +2,8 @@ module("extensions.boss", package.seeall)
 extension = sgs.Package("boss", sgs.Package_GeneralPack)
 
 --获得道具
+--player: 获得道具的玩家
+--item_list：例如 "Coin:15+bird_pendant:1" 代表 玩家获得 15枚G币 和 1枚银鸟吊坠
 gainItems = function(player, item_list)
 	local room = player:getRoom()
 	
@@ -9,7 +11,7 @@ gainItems = function(player, item_list)
 	for _, it in ipairs(items) do
 		local pair = it:split(":")
 		local item = pair[1]
-		local n = pair[2]
+		local n = tonumber(pair[2])
 		if item == "Coin" then
 			local json = require("json")
 			local jsonValue = {
@@ -40,6 +42,7 @@ gainItems = function(player, item_list)
 		end
 	end
 	
+	--单机/联机：提示式存档
 	if (player:getState() == "online" or player:getState() == "trust") then
 		room:setPlayerProperty(player, "luckyrecord", sgs.QVariant(item_list))
 		if player:getState() == "trust" then

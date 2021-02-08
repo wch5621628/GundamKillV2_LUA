@@ -1,6 +1,141 @@
 module("extensions.gaodacard", package.seeall)
 extension = sgs.Package("gaodacard", sgs.Package_CardPack)
 
+shootUse = function(self, room, source, targets, isSpreadShoot)
+	if isSpreadShoot == nil then isSpreadShoot = false end
+	
+	if self:objectName() ~= "shoot" then
+		room:addPlayerHistory(source, "Shoot")
+	end
+	
+	local hit_targets, missed_targets = sgs.SPlayerList(), sgs.SPlayerList()
+	
+	local ShootHitRate = source:getMark("ShootHitRate")
+	room:setPlayerMark(source, "ShootHitRate", 0)
+	
+	local isShootHit = function(source, t, n_targets, ShootHitRate)
+		if source:hasFlag("ShootMustMiss") then
+			return false
+		end
+		
+		math.random()
+		if isSpreadShoot then
+			return (source:inMyAttackRange(t) and (100 * math.random()) <= math.max(50 + 50 / n_targets, ShootHitRate))
+				or (not source:inMyAttackRange(t) and (100 * math.random()) <= math.max(35 + 35 / n_targets, ShootHitRate))
+		else
+			return source:inMyAttackRange(t) or math.random(1, 100) <= math.max(70, ShootHitRate)
+		end
+	end
+	
+	for _, t in ipairs(targets) do
+		if isShootHit(source, t, #targets, ShootHitRate) then
+			room:setEmotion(t, "lockon")
+			hit_targets:append(t)
+		else
+			missed_targets:append(t)
+		end
+	end
+	
+	if not hit_targets:isEmpty() then
+		local log = sgs.LogMessage()
+		log.type = "#shoot_hit"
+		log.from = source
+		log.to = hit_targets
+		log.card_str = self:toString()
+		room:sendLog(log)
+	end
+	if not missed_targets:isEmpty() then
+		local log = sgs.LogMessage()
+		log.type = "#shoot_miss"
+		log.from = source
+		log.to = missed_targets
+		log.card_str = self:toString()
+		room:sendLog(log)
+	end
+	
+	local nullified_list = room:getTag("CardUseNullifiedList"):toStringList()
+	local all_nullified = table.contains(nullified_list, "_ALL_TARGETS")
+	for _, t in sgs.qlist(hit_targets) do
+		local effect = sgs.CardEffectStruct()
+		effect.card = self
+		effect.from = source
+        effect.to = t
+		effect.nullified = (all_nullified or table.contains(nullified_list, t:objectName()))
+		room:cardEffect(effect)
+	end
+	
+	if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
+		local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
+		room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
+	end
+end
+
+--[[
+shootEffect = function(self, effect)
+
+end
+]]
+
+shootResult = function(self, effect, jink)
+	local source = effect.from
+	local target = effect.to
+	local room = source:getRoom()
+	
+	if jink and jink:getSkillName() ~= "eight_diagram" and jink:getSkillName() ~= "bazhen" then
+		if target:isAlive() then
+			room:setEmotion(target, "jink")
+		end
+	elseif not jink then
+		if target:isAlive() then
+			room:damage(sgs.DamageStruct(self, source:isAlive() and source or nil, target))
+		end
+	end
+end
+
+shootEffect = function(self, effect)
+	local source = effect.from
+	local target = effect.to
+	local room = source:getRoom()
+	
+	local jink_list = source:getTag("Jink_" .. self:toString()):toIntList()
+	local jink_num = jink_list:first()
+	jink_list:removeAt(0)
+	if jink_list:isEmpty() then
+		source:removeTag("Jink_" .. self:toString())
+	else
+		local jink_data = sgs.QVariant()
+		jink_data:setValue(jink_list)
+		source:setTag("Jink_" .. self:toString(), jink_data)
+	end
+	
+	local data = sgs.QVariant()
+	data:setValue(effect)
+	if jink_num > 0 then
+		if not target:isAlive() then return end
+		if jink_num == 1 then
+			local jink = room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
+			shootResult(self, effect, jink)
+		else
+			local jink = sgs.Sanguosha:cloneCard("jink")
+            local asked_jink = nil
+			for i = jink_num, 1, -1 do
+                local prompt = ("@multi-shoot-jink%s:%s::%d"):format(i == jink_num and "-start" or "", source:objectName(), i)
+                asked_jink = room:askForCard(target, "jink", prompt, data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
+                if not asked_jink then
+                    jink:deleteLater()
+                    shootResult(self, effect, nil)
+                    return
+                else
+                    jink:addSubcard(asked_jink:getEffectiveId())
+                end
+            end
+            shootResult(self, effect, jink)
+		end
+	else
+		shootResult(self, effect, nil)
+	end
+end
+
 shoot = sgs.CreateBasicCard{
 	name = "shoot",
 	class_name = "Shoot",
@@ -17,52 +152,19 @@ shoot = sgs.CreateBasicCard{
 		return #targets > 0
 	end,
 	available = function(self, player)
+		if player:isCardLimited(self, sgs.Card_MethodUse) then
+			return false
+		end
 		return player:usedTimes("Shoot") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, player, self)
 	end,
-	about_to_use = function(self, room, use)
+	--[[about_to_use = function(self, room, use)
 		self:cardOnUse(room, use)
-	end,
+	end,]]
 	on_use = function(self, room, source, targets)
-		room:addPlayerHistory(source, "Shoot")
-		
-		local hit_targets, missed_targets = {}, sgs.SPlayerList()
-		math.random()
-		for _, t in ipairs(targets) do
-			if source:inMyAttackRange(t) or math.random(1, 100) <= 70 then
-				room:setEmotion(t, "lockon")
-				table.insert(hit_targets, t)
-			else
-				missed_targets:append(t)
-			end
-		end
-		if not missed_targets:isEmpty() then
-			local log = sgs.LogMessage()
-			log.type = "#shoot_failed"
-			log.from = source
-			log.to = missed_targets
-			log.card_str = self:toString()
-			room:sendLog(log)
-		end
-		for _, t in ipairs(hit_targets) do
-			room:cardEffect(self, source, t)
-		end
-		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
-			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
-			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
-		end
+		shootUse(self, room, source, targets)
 	end,
 	on_effect = function(self, effect)
-		local source = effect.from
-		local target = effect.to
-		local room = source:getRoom()
-		local data = sgs.QVariant()
-		data:setValue(effect)
-		local jink = room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
-		if jink and jink:getSkillName() ~= "eight_diagram" and jink:getSkillName() ~= "bazhen" then
-			room:setEmotion(target, "jink")
-		elseif not jink then
-			room:damage(sgs.DamageStruct(self, source:isAlive() and source or nil, target))
-		end
+		shootEffect(self, effect)
 	end
 }
 
@@ -95,52 +197,19 @@ pierce_shoot = sgs.CreateBasicCard{
 		return #targets > 0
 	end,
 	available = function(self, player)
+		if player:isCardLimited(self, sgs.Card_MethodUse) then
+			return false
+		end
 		return player:usedTimes("Shoot") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, player, self)
 	end,
 	about_to_use = function(self, room, use)
 		self:cardOnUse(room, use)
 	end,
 	on_use = function(self, room, source, targets)
-		room:addPlayerHistory(source, "Shoot")
-		
-		local hit_targets, missed_targets = {}, sgs.SPlayerList()
-		math.random()
-		for _, t in ipairs(targets) do
-			if source:inMyAttackRange(t) or math.random(1, 100) <= 70 then
-				room:setEmotion(t, "lockon")
-				table.insert(hit_targets, t)
-			else
-				missed_targets:append(t)
-			end
-		end
-		if not missed_targets:isEmpty() then
-			local log = sgs.LogMessage()
-			log.type = "#shoot_failed"
-			log.from = source
-			log.to = missed_targets
-			log.card_str = self:toString()
-			room:sendLog(log)
-		end
-		for _, t in ipairs(hit_targets) do
-			room:cardEffect(self, source, t)
-		end
-		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
-			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
-			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
-		end
+		shootUse(self, room, source, targets)
 	end,
 	on_effect = function(self, effect)
-		local source = effect.from
-		local target = effect.to
-		local room = source:getRoom()
-		local data = sgs.QVariant()
-		data:setValue(effect)
-		local jink = room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
-		if jink and jink:getSkillName() ~= "eight_diagram" and jink:getSkillName() ~= "bazhen" then
-			room:setEmotion(target, "jink")
-		elseif not jink then
-			room:damage(sgs.DamageStruct(self, source:isAlive() and source or nil, target))
-		end
+		shootEffect(self, effect)
 	end
 }
 
@@ -169,53 +238,19 @@ spread_shoot = sgs.CreateBasicCard{
 		return #targets > 0
 	end,
 	available = function(self, player)
+		if player:isCardLimited(self, sgs.Card_MethodUse) then
+			return false
+		end
 		return player:usedTimes("Shoot") < 1 + sgs.Sanguosha:correctCardTarget(sgs.TargetModSkill_Residue, player, self)
 	end,
 	about_to_use = function(self, room, use)
 		self:cardOnUse(room, use)
 	end,
 	on_use = function(self, room, source, targets)
-		room:addPlayerHistory(source, "Shoot")
-		
-		local hit_targets, missed_targets = {}, sgs.SPlayerList()
-		math.random()
-		for _, t in ipairs(targets) do
-			if (source:inMyAttackRange(t) and math.random(1, 100) <= 50 + 50 / #targets)
-				or (not source:inMyAttackRange(t) and math.random(1, 100) <= 35 + 35 / #targets) then
-				room:setEmotion(t, "lockon")
-				table.insert(hit_targets, t)
-			else
-				missed_targets:append(t)
-			end
-		end
-		if not missed_targets:isEmpty() then
-			local log = sgs.LogMessage()
-			log.type = "#shoot_failed"
-			log.from = source
-			log.to = missed_targets
-			log.card_str = self:toString()
-			room:sendLog(log)
-		end
-		for _, t in ipairs(hit_targets) do
-			room:cardEffect(self, source, t)
-		end
-		if room:getCardPlace(self:getEffectiveId()) == sgs.Player_PlaceTable then
-			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
-			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
-		end
+		shootUse(self, room, source, targets, true)
 	end,
 	on_effect = function(self, effect)
-		local source = effect.from
-		local target = effect.to
-		local room = source:getRoom()
-		local data = sgs.QVariant()
-		data:setValue(effect)
-		local jink = room:askForCard(target, "jink", "shoot-jink:"..source:objectName()..":"..self:objectName(), data, sgs.Card_MethodResponse, source:isAlive() and source or nil)
-		if jink and jink:getSkillName() ~= "eight_diagram" and jink:getSkillName() ~= "bazhen" then
-			room:setEmotion(target, "jink")
-		elseif not jink then
-			room:damage(sgs.DamageStruct(self, source:isAlive() and source or nil, target))
-		end
+		shootEffect(self, effect)
 	end
 }
 
@@ -227,6 +262,29 @@ end
 for n = 4, 6, 2 do
 	spread_shoot:clone(3, n):setParent(extension)
 end
+
+shoot_skill = sgs.CreateTriggerSkill{
+	name = "shoot_skill",
+	events = {sgs.CardUsed},
+	global = true,
+	priority = 0,
+	can_trigger = function(self, target)
+		return target and target:isAlive()
+	end,
+	on_trigger = function(self, event, player, data)
+		local room = player:getRoom()
+		local use = data:toCardUse()
+		if use.card and use.card:objectName():endsWith("shoot") then
+			local jink_list = sgs.IntList()
+			for _, _ in sgs.qlist(use.to) do
+				jink_list:append(1)
+			end
+			local jink_data = sgs.QVariant()
+			jink_data:setValue(jink_list)
+			use.from:setTag("Jink_" .. use.card:toString(), jink_data)
+		end
+	end
+}
 
 Guard = sgs.CreateBasicCard{
 	name = "Guard",
@@ -276,6 +334,11 @@ Guard_skill = sgs.CreateTriggerSkill{
 		if target and target:isAlive() then
 			--强武可触发
 			if target:hasSkill("luaqiangwu") and target:getMark("luaqiangwub") > 0 then
+				return true
+			end
+			
+			--覆盾可触发
+			if target:hasSkill("fudun") and (target:getDefensiveHorse() ~= nil or target:getOffensiveHorse() ~= nil) then
 				return true
 			end
 			
@@ -404,7 +467,7 @@ tactical_combo = sgs.CreateTrickCard{
 	is_cancelable = function(self, effect)
 		return true
 	end,
-	about_to_use = function(self, room, use)
+	--[[about_to_use = function(self, room, use)
 		self:cardOnUse(room, use)
 	end,
 	on_use = function(self, room, source, targets)
@@ -415,7 +478,7 @@ tactical_combo = sgs.CreateTrickCard{
 			local reason = sgs.CardMoveReason(sgs.CardMoveReason_S_REASON_USE, source:objectName(), "", self:getSkillName(), "")
 			room:moveCardTo(self, source, nil, sgs.Player_DiscardPile, reason, true)
 		end
-	end,
+	end,]]
 	on_effect = function(self, effect)
 		local room = effect.from:getRoom()
 		if effect.from:objectName() == effect.to:objectName() and effect.to:getAI() and sgs.Slash_IsAvailable(effect.to) then --For AI use only
@@ -536,6 +599,7 @@ laplace_box = sgs.CreateTreasure{
 
 laplace_box:clone():setParent(extension)
 local skills = sgs.SkillList()
+if not sgs.Sanguosha:getSkill("shoot_skill") then skills:append(shoot_skill) end
 if not sgs.Sanguosha:getSkill("Guard_skill") then skills:append(Guard_skill) end
 if not sgs.Sanguosha:getSkill("laplace_box_skill") then skills:append(laplace_box_skill) end
 if not sgs.Sanguosha:getSkill("laplace_box_card") then skills:append(laplace_box_card) end
@@ -552,8 +616,11 @@ sgs.LoadTranslationTable{
 	<b>命中率</b>：攻击范围内：100%，攻击范围外：70%\
 	<b>效果</b>：被命中的目标角色须打出一张【闪】，否则对其造成1点伤害。",
 	["shoot-jink"] = "%src 使用了【%dest】，请打出一张【闪】",
-	["#shoot_failed"] = "%from 对 %to 使用的 %card 命中失败",
+	["#shoot_hit"] = "%from 对 %to 使用的 %card 命中成功！",
+	["#shoot_miss"] = "%from 对 %to 使用的 %card 命中失败",
 	["#use_shoot"] = "%from 使用了【%arg】，目标是 %to",
+	["@multi-shoot-jink-start"] = "%src 使用了【射击】，你须连续打出 %arg 张【闪】",
+	["@multi-shoot-jink"] = "%src 使用了【射击】，你须再打出 %arg 张【闪】",
 	
 	["pierce_shoot"] = "贯穿射击",
 	["PierceShoot"] = "贯穿射击",
